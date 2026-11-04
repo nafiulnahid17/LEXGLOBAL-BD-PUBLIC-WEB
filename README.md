@@ -100,3 +100,11 @@ The AI Legal Assistant keeps the same Messenger-style interface while improving 
 ### Verification
 
 `node --test tests/worker.test.mjs` passes **39 tests** including continuation payload validation, long Banglish/Bengali history, and token truncation. Local Playwright UI checks simulated a cutoff (`আপনি ক`), verified seamless completion in the same bubble, history-aware `bujhi nai`, a manual Continue fallback, reset, and mobile layout. The model was **mocked** for these checks. A live Cloudflare deployment and real inference quality have not been verified in this environment; token-budget exhaustion, network failures or model errors can still interrupt results.
+
+
+## Conversation continuity regression fix (November 2026)
+
+- For short clarification follow-ups (`bujhi nai`, `বুঝিনি`, `explain again`), the same user topic is made explicit in the model prompt while previous conversation roles are still preserved. The fallback does not invent facts.
+- Long Bangla assistant history is compacted with both its opening context and closing conclusion, rather than keeping only the first 1800 characters.
+- Streaming now treats a long sentence lacking an ending as potentially incomplete even if a provider reports `stop`. Existing bounded auto-continuation and manual `উত্তর চালিয়ে যান` controls remain available.
+- Regression tests cover context continuity and SSE termination without `[DONE]`. AI inference remains via native Cloudflare Workers binding, without REST tokens or login.
