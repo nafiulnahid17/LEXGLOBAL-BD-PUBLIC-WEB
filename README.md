@@ -1,117 +1,85 @@
-# LexGlobal BD — For Public | Cloudflare Workers Foundation
+# LexGlobal BD — For Public | Cloudflare AI Backend v2
 
-**Status: Cloudflare deployment foundation — user interface only.**
+**Status:** Code is integrated and unit-tested. Live Cloudflare deployment, real model latency, index contents, and production accuracy cannot be verified until your Cloudflare account has the required resources. No Cloudflare secrets are included.
 
-A responsive, premium Navy Blue + Gold public-services frontend designed around the user's previously approved **11 Public UI mockups**. Every public feature has a separate URL, contextual service form / workspace, responsive navigation, and optimized preview artwork. There is **no login/signup**.
+The existing Premium Navy Blue + Gold frontend with all **11 public feature pages** remains intact. No login / signup has been introduced. Submit buttons now call the same-origin Cloudflare Worker API and show results or explicit configuration errors; data and sources are rendered as text rather than injected HTML.
 
-The package is intentionally lightweight: **plain HTML, CSS, JavaScript + a Cloudflare Worker**, with no React or npm frontend build required. It deploys directly to Cloudflare Workers Static Assets.
+## Architecture
 
-## 1. Run locally
+- **Static Assets + Worker:** `site/` static content and `worker/index.js` on the Cloudflare Workers edge.
+- **Fast model:** `@cf/qwen/qwen3-30b-a3b-fp8`, a multilingual 30B MoE model with about 3B active parameters. This is a practical low-overhead default, **not a benchmarked claim that it is the fastest model for every prompt**.
+- **Binding first:** `env.AI.run()` via Cloudflare Workers AI binding (no token needed inside the Worker). Optional Cloudflare AI Gateway `default`, configured for disabled AI logs and per-request cache bypass to avoid storing private legal prompts.
+- **REST/token fallback:** `CF_AI_USE_REST=true`, `CF_ACCOUNT_ID`, and secret `CF_AI_API_TOKEN`. This works with Cloudflare's **Workers AI API token**, not arbitrary deployment tokens. Do not place tokens in public GitHub or browser JavaScript.
+- **Source-grounded legal AI:** `AI_SEARCH` namespace binding queries the `LEGAL_SEARCH_INSTANCE` collection. Hybrid retrieval (max 5, score >= 0.55) must return official `*.gov.bd` HTTPS sources before a legal answer or draft may be generated. Outputs with no valid `[n]` citation are rejected. **This reduces some hallucination risks, but cannot guarantee zero legal errors.** All important legal facts require human review.
+- **Low latency deterministic government guides:** Land, BRTA, Tax, Passport, Expat, NariSafe and Emergency routes respond immediately from curated official URLs — they do *not* call the LLM or claim a government integration.
+- **Abuse controls:** 8 KB JSON-only requests, origin check, approximate 12/minute Cloudflare per-IP rate limit, no document uploads, and no server-side storage of user inputs. With no user accounts, the public endpoint still needs production abuse monitoring and privacy review.
+- **Fail closed:** Until an indexed set of verified official Bangladesh legal source documents is available, the three legal AI features return `LEGAL_SOURCES_NOT_CONFIGURED` (503), instead of fabricating legal answers.
 
-Requires **Python 3.10+** for the included local preview server:
+## Features
 
-```bash
-python3 scripts/dev_server.py
-```
+### Source-grounded AI (requires verified AI Search index)
+1. `ai-legal-assistant` — general legal questions
+2. `instant-legal-draft` — preliminary **sample** legal draft
+3. `ai-case-analysis` — preliminary issue checklist (no attachments; not an outcome prediction)
 
-Open **http://127.0.0.1:4173/public**. The local preview server supports refreshing `/public/<feature-slug>` URLs.
+### Direct official guidance (works even without an AI model)
+4. `smart-land-management` — `land.gov.bd`
+5. `smart-vehicle-brta` — `bsp.brta.gov.bd`
+6. `smart-tax-management` — `etaxnbr.gov.bd`
+7. `passport-assistant` — `epassport.gov.bd`
+8. `expat-documentation` — `probashi.gov.bd`, `oep.gov.bd`
+9. `narisafe` — official help channels
+10. `emergency-sos-gesture` — **not activated**, never implies alerts are sent
+11. `emergency-call` — tel links, no automatic dialing
 
-No live backend API is connected to the local preview. All interactive form submit buttons correctly show a **not configured** message; nothing is sent.
+## Deploy
 
-## 2. Deploy to Cloudflare Workers
-
-Requires **Node.js 20+**, a Cloudflare account and internet access.
+Requirements: Node.js 20+, Wrangler 4.36+, authorized Cloudflare account.
 
 ```bash
 npm install
+npm test
 npx wrangler login
 npx wrangler deploy
 ```
 
-Or run `npm run deploy` after `npm install`. The first deployment uses the name **lexglobalbd-public-foundation**; edit `name` in `wrangler.jsonc` to rename your Worker.
+See `DEPLOY_BN.md` for a step-by-step Cloudflare AI Search + secret setup and verification. **Do not commit secrets**. For an API-token-based CI deployment, use `CLOUDFLARE_API_TOKEN` as a *CI secret with Workers deployment privileges*, not the Workers AI model token.
 
-To bind a custom domain, go to **Cloudflare Dashboard → Workers & Pages → your Worker → Settings → Domains & Routes**.
+### Cloudflare AI Search instance
 
-> Deploying will publish the interface and API placeholders only. No AI engines, official government service APIs, uploads, SMS, data storage or gesture alerts are activated by this starter.
+1. In Cloudflare, create an AI Search instance that indexes **actual, current official Bangladesh legal material** (e.g. verified statutory texts from `bdlaws.minlaw.gov.bd` or other official `*.gov.bd` sources) with `source_url` metadata set to its original HTTPS URL. Review all content provenance and updates before enabling.
+2. In `wrangler.jsonc`, set `vars.LEGAL_SEARCH_INSTANCE` to that existing instance ID. AI Search namespace `default` is already bound as `AI_SEARCH`.
+3. Deploy and call `GET /api/health` to verify `legalAnsweringEnabled: true` (configuration readiness, not proof that indexing succeeded). Then perform genuine source-backed legal tests with a human reviewer.
 
-## 3. Feature routes
+### Optional REST mode
 
-| # | Public feature | Path |
-|---|---|---|
-| 1 | AI Legal Assistant | `/public/ai-legal-assistant` |
-| 2 | Instant Legal Draft | `/public/instant-legal-draft` |
-| 3 | AI Case Analysis | `/public/ai-case-analysis` |
-| 4 | Smart Land Management | `/public/smart-land-management` |
-| 5 | Smart Vehicle & BRTA Services | `/public/smart-vehicle-brta` |
-| 6 | Smart Tax Management | `/public/smart-tax-management` |
-| 7 | Passport Assistant | `/public/passport-assistant` |
-| 8 | Expat & Documentation Help | `/public/expat-documentation` |
-| 9 | NariSafe — Women's Safety | `/public/narisafe` |
-| 10 | Emergency SOS Gesture | `/public/emergency-sos-gesture` |
-| 11 | Emergency Call | `/public/emergency-call` |
-
-`/` also displays the dashboard. Internal links navigate between these pages without full reloads. Direct navigation works through Wrangler's SPA fallback configuration.
-
-## 4. Foundation API
-
-After Cloudflare deployment:
-
-- `GET /api/health` → `200`, `{ok:true, mode:"foundation", integrationsActive:false}`
-- `GET /api/features` → `200`, lists all 11 feature slugs as `not_configured`
-- `POST /api/workflows/:slug` → `501`, `PROVIDER_NOT_CONFIGURED`. Sensitive request bodies are **not read or stored**.
-
-The frontend intentionally does not transmit any form fields to the Worker. A form submit displays a local status message only.
-
-## 5. How to connect actual services later
-
-- `site/app.js` — feature registry, UI templates, route handling, form placeholder behavior. Replace the form submit handler with authenticated and validated API calls once integrations are available.
-- `site/styles.css` — theme tokens, responsive layout and accessibility styling.
-- `worker/index.js` — Cloudflare API entry point. Integrate service providers here or proxy to approved backends using secure server-side bindings.
-- `site/previews/*.webp` — optimized images derived from the earlier Public UI mockups, supplied as design placeholders.
-- `wrangler.jsonc` — Worker configuration, static assets, SPA route fallback.
-- `site/_headers` — security headers applied to static content.
-
-**Secrets:** use `npx wrangler secret put YOUR_SECRET`, never embed credentials in `site/app.js`. Before accepting legal, medical or identity information, implement validation, privacy controls, consent, secure storage, retention/deletion, abuse/rate limiting, and legal advice guardrails.
-
-**Safety:** SOS Gesture is **not** operational; never advertise automatic dispatch or geolocation sharing until a verified and consent-based implementation exists. The direct `tel:` links for **999**, **16699** and **109** can invoke a device's dialer but do not independently place a call or monitor an emergency. This site is not an emergency responder.
-
-## 6. Verified helpline information
-
-- Bangladesh National Emergency Service: **999** (source: Bangladesh Police and national portal).
-- National Legal Aid (NLASO): **16699**. This replaced 16430 in November 2025.
-- Women and Children Violence Prevention Helpline: **109** (source: Bangladesh National Portal).
-
-Sources:
-- https://telecom-police.portal.gov.bd/
-- https://nlaso.gov.bd/
-- https://bangladesh.gov.bd/
-
-## 7. Suggested integration phases
-
-1. Deploy UI on Workers (no AI or government APIs yet).
-2. Connect a legal assistant to your approved model gateway and legal corpus with source citation and moderation.
-3. Integrate legal drafts + case analysis through secure backend handling; do not send case documents without authorization.
-4. Add public service adapters, only where official APIs and permissions exist.
-5. Add explicit consent/permission-based safety workflows, then test with actual devices and emergency protocols.
-
-## 8. Project structure
-
-```text
-LexGlobalBD_Public_Cloudflare_Foundation/
-├── site/
-│   ├── index.html
-│   ├── app.js
-│   ├── styles.css
-│   ├── _headers
-│   ├── favicon.svg
-│   └── previews/       # 11 optimized mockup images + 1 hero asset
-├── worker/
-│   └── index.js
-├── scripts/
-│   └── dev_server.py
-├── wrangler.jsonc
-├── package.json
-└── README.md
+```bash
+npx wrangler secret put CF_AI_API_TOKEN  # Workers AI API token; keep secret
 ```
 
-Cloudflare reference: https://developers.cloudflare.com/workers/static-assets/routing/single-page-application/
+Then add `vars.CF_ACCOUNT_ID` to `wrangler.jsonc` and set `vars.CF_AI_USE_REST` to `"true"`, or set them via the Cloudflare environment. Native binding remains recommended for lower overhead.
+
+## API
+
+- `GET /api/health` — public configuration readiness (never returns tokens)
+- `GET /api/features` — 11 statuses
+- `POST /api/workflows/{slug}` — `Content-Type: application/json`, same origin. For example `{ "question":"ভাড়াটিয়ার অধিকার সম্পর্কে সাধারণ প্রশ্ন কী?" }` for `ai-legal-assistant`.
+
+A successful answer has `{ok:true,mode:'grounded_ai'|'official_guide',answer,sources,stored:false}`. Errors return `{ok:false,code,message,stored:false}`. The API does not accept files or personal identification and is **not a government transaction endpoint**.
+
+## Testing
+
+```bash
+npm test
+node --check worker/index.js
+node --check site/app.js
+```
+
+All tests run with mocked Cloudflare AI/Search bindings and include safety cases. Live model quality, legal accuracy, token validation, real Cloudflare throughput and browser visual QA require deployment and account resources. See `QA_NOTES.md`.
+
+Official platform documentation:
+- https://developers.cloudflare.com/workers-ai/configuration/bindings/
+- https://developers.cloudflare.com/workers-ai/models/qwen3-30b-a3b-fp8/
+- https://developers.cloudflare.com/ai-search/api/search/workers-binding/
+- https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
+- https://developers.cloudflare.com/workers-ai/get-started/rest-api/

@@ -283,3 +283,16 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 [hidden] { display: none !important; }
+
+/* Verified response panel; client inserts output as text, never raw HTML. */
+.submission-note { display:block; margin-top:20px; padding:18px; border:1px solid rgba(242,190,90,.4); border-radius:14px; background:rgba(12,29,52,.9); color:#f5f1e7; }
+.submission-note[hidden] { display:none; }
+.submission-note strong {display:block;margin-bottom:10px;color:#f5ca76;font-size:1.04rem;}
+.submission-note .workflow-answer {line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere;}
+.submission-note.result-success {border-color:rgba(119,210,170,.48);}
+.submission-note h4 {margin:16px 0 8px;color:#f5ca76;}
+.workflow-sources {padding-left:20px;margin-bottom:4px;}
+.workflow-sources li {margin:8px 0;}
+.workflow-sources a {color:#8fd7f5;text-decoration:underline;}
+.workflow-disclaimer {font-size:.88rem;opacity:.82;margin-top:12px;}
+.form-action[disabled] {opacity:.55;cursor:wait;}

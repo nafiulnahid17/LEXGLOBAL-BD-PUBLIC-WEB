@@ -1,16 +1,26 @@
-# Foundation Verification (2026-11-04)
+# QA — Cloudflare Workers AI Integration v2
 
-- [x] `site/app.js` — JavaScript syntax check passed (`node --check`).
-- [x] `worker/index.js` — JavaScript syntax check passed (`node --check`).
-- [x] Home dashboard and all 11 routes render correct content using an isolated DOM-render smoke test.
-- [x] No Login / Sign Up interface appears on tested routes.
-- [x] All 11 `.webp` feature preview assets exist.
-- [x] Worker `/api/health` returns 200 and flags integrations inactive.
-- [x] Worker `/api/features` returns 11 entries.
-- [x] Worker workflow stub returns `501 PROVIDER_NOT_CONFIGURED` and `stored: false`.
-- [x] Local preview server returns HTTP 200 for root, nested routes, CSS, JS and a preview image.
-- [ ] Visual browser screenshot test was unavailable in this container (Chromium timed out); manual desktop/mobile visual QA still recommended.
-- [ ] Live Cloudflare deployment **not performed**; requires Cloudflare account authentication.
-- [ ] External AI or government integrations **not implemented**.
+## Automated tests
 
-This is a deployable foundation, not a production-ready regulated legal service.
+`npm test` runs Node.js test cases with mocked Cloudflare bindings. Scenarios include:
+- 11 features and configuration health
+- Official guidance response for every non-AI public route
+- Three AI workflow input types with official source grounding
+- Failure closed for missing source index, invalid domains, low similarity
+- Blocking uncited and out-of-range citations
+- Safe response on model failure, cross-origin abuse, overlong request, invalid JSON, file upload
+- Approximate rate limiting and static asset fallback
+
+Also run `node --check worker/index.js` and `node --check site/app.js`.
+
+## Production verification NOT YET performed
+
+- Cloudflare account authorization and deployment
+- Real Workers AI token validity / native AI binding inference
+- AI Search index creation and trustworthy legal-text ingestion
+- Bengali legal-domain correctness evaluated by licensed reviewers
+- Actual response latency and throughput benchmarks
+- Cloudflare account billing and data residency/privacy settings
+- End-to-end browser visual accessibility review
+
+**No model can guarantee zero legal mistakes.** The app requires official-source retrieval, displays citations, and rejects some malformed responses to reduce risk. A human review and continuous source maintenance are still essential.

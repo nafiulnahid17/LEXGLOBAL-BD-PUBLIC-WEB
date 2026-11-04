@@ -1,5 +1,5 @@
-// LexGlobal BD — For Public (static frontend foundation; no API/AI providers connected)
-// Never store or transmit user's legal facts, files or personal data from this demonstration UI.
+// LexGlobal BD — Public Cloudflare Workers AI frontend.
+// Only minimal non-document form fields are sent over same-origin POST; no browser storage.
 const ROOT = '/public';
 const link = (slug) => `${ROOT}/${slug}`;
 const features = [
@@ -65,11 +65,11 @@ function sidebar() {
 function featureSlug(){const p=location.pathname.replace(/\/$/,''); return p.startsWith(ROOT+'/')?p.slice(ROOT.length+1):'';}
 function currentFeature(){return features.find(f=>f.slug===featureSlug());}
 function isHome(){return ['/',ROOT,''].includes(location.pathname.replace(/\/$/,'')||'/');}
-function header(){return `<header class="topbar"><div class="topbar-left"><button type="button" class="icon-button menu-trigger" data-menu aria-label="মেনু খুলুন">${icon('menu',22)}</button><div class="topbar-breadcrumb"><span class="small-glow"></span><span>LEXGLOBAL BD</span>${icon('chevron',15)}<strong>For Public</strong></div></div><div class="topbar-actions"><span class="header-status"><span class="status-pulse"></span> Foundation Preview</span><button class="size-button" type="button" data-size aria-label="টেক্সটের আকার পরিবর্তন">${icon('zoom',16)}${enlarged?'A−':'A+'}</button><a class="header-emergency" href="tel:999">${icon('phone',16)} জরুরি ৯৯৯</a></div></header>`;}
-function footer(){return `<footer class="footer"><div class="footer-brand"><span class="footer-mark">⚖</span><div><strong>Lex<span>Global</span> BD</strong><small>আইন হোক সহজ, সবার জন্য</small></div></div><div class="footer-links"><a href="${ROOT}">Public Home</a><a href="${link('ai-legal-assistant')}">AI Assistant</a><a href="${link('emergency-call')}">Emergency</a></div><p>© 2026 LexGlobal BD · Atherious Labs</p><small class="footer-disclaimer">আইনি নির্দেশনার প্রাথমিক ডিজাইন। AI বা সরকারি পরিষেবা এখনো সংযুক্ত নয়।</small></footer>`;}
+function header(){return `<header class="topbar"><div class="topbar-left"><button type="button" class="icon-button menu-trigger" data-menu aria-label="মেনু খুলুন">${icon('menu',22)}</button><div class="topbar-breadcrumb"><span class="small-glow"></span><span>LEXGLOBAL BD</span>${icon('chevron',15)}<strong>For Public</strong></div></div><div class="topbar-actions"><span class="header-status"><span class="status-pulse"></span> Public Web</span><button class="size-button" type="button" data-size aria-label="টেক্সটের আকার পরিবর্তন">${icon('zoom',16)}${enlarged?'A−':'A+'}</button><a class="header-emergency" href="tel:999">${icon('phone',16)} জরুরি ৯৯৯</a></div></header>`;}
+function footer(){return `<footer class="footer"><div class="footer-brand"><span class="footer-mark">⚖</span><div><strong>Lex<span>Global</span> BD</strong><small>আইন হোক সহজ, সবার জন্য</small></div></div><div class="footer-links"><a href="${ROOT}">Public Home</a><a href="${link('ai-legal-assistant')}">AI Assistant</a><a href="${link('emergency-call')}">Emergency</a></div><p>© 2026 LexGlobal BD · Atherious Labs</p><small class="footer-disclaimer">AI উত্তরের জন্য যাচাইকৃত সরকারি আইনি উৎস আবশ্যক; সরকারি আবেদন এখানে গ্রহণ করা হয় না।</small></footer>`;}
 function dashboard(){return `
  <section class="hero"><div class="hero-visual" role="img" aria-label="স্বর্ণালি ন্যায়বিচারের প্রতীক ও আইন বই"></div><div class="hero-copy">${badge(`${icon('sparkle',14)} BANGLADESH'S SMART LEGAL PLATFORM`)}<h1>আইন হোক সহজ,<br><em>সবার জন্য।</em></h1><p>AI-powered legal support, public service guides and emergency help — সবকিছু এক জায়গায়।</p><div class="hero-buttons"><a class="btn btn-gold" href="#public-features">Explore Public Tools ${icon('arrow',18)}</a><a class="btn btn-outline" href="${link('emergency-call')}">${icon('phone',16)} Emergency Help</a></div><div class="hero-tags"><span>${icon('check',14)} সহজ নেভিগেশন</span><span>${icon('check',14)} বাংলা ও ইংরেজি</span><span>${icon('check',14)} লগইন ছাড়াই</span></div></div></section>
- <div class="intro-strip"><div class="intro-icon">${icon('shield',25)}</div><div><strong>Public Service Foundation</strong><p>১১টি সেবার পূর্ণ UI layout প্রস্তুত। বাস্তব API integration এখনো করা হয়নি।</p></div>${badge('UI FOUNDATION','blue')}</div>
+ <div class="intro-strip"><div class="intro-icon">${icon('shield',25)}</div><div><strong>Public Service Foundation</strong><p>১১টি সেবার workflow; সরকারি লেনদেনের জন্য মূল সরকারি পোর্টালের লিংক।</p></div>${badge('UI FOUNDATION','blue')}</div>
  <section class="get-started"><div class="get-icon">${icon('sparkle',27)}</div><div><h2>Get Started with <span>LexGlobal BD</span></h2><p>আপনার প্রয়োজন অনুযায়ী সেবা নির্বাচন করুন।</p></div><a class="btn btn-gold" href="#public-features">Get Started ${icon('arrow',17)}</a></section>
  <section class="features-section" id="public-features"><div class="section-heading"><div><span class="eyebrow">OUR PUBLIC ECOSYSTEM</span><h2>Explore Public Features</h2><p>সহজ, পরিপাটি এবং প্রয়োজন অনুযায়ী সাজানো টুলস।</p></div><span class="feature-count">11 Features</span></div><label class="search-box">${icon('search',20)}<span class="visually-hidden">ফিচার খুঁজুন</span><input id="feature-search" placeholder="Search public features... / সেবা খুঁজুন" autocomplete="off"><span class="search-hint">⌘ K</span></label>
  ${groups.map(g=>`<div class="category" data-group="${g.key}"><div class="category-heading"><div class="category-rule"></div><div><h3>${g.title}</h3><p>${g.desc}</p></div><span class="group-count">${String(features.filter(f=>f.group===g.key).length).padStart(2,'0')}</span></div><div class="feature-grid">${features.filter(f=>f.group===g.key).map(f=>`<a class="feature-card" data-search="${(f.title+' '+f.bn+' '+f.summary).toLocaleLowerCase()}" href="${link(f.slug)}"><div class="feature-image" style="background-image:linear-gradient(to bottom, transparent 18%,rgba(3,14,32,.85) 100%),url('/previews/${f.slug}.webp')"><span class="card-overlay-icon">${icon(f.icon,22)}</span></div><div class="feature-card-body"><h4>${f.title}</h4><p>${f.bn}</p><span class="card-arrow">${icon('arrow',18)}</span></div></a>`).join('')}</div></div>`).join('')}
@@ -84,10 +84,10 @@ function contacts(f){const women=f.slug==='narisafe';const details=(no,label,sub
  return `<div class="safety-contacts"><div class="alert-soft">${icon('alert',20)}<div><strong>জরুরি পরিস্থিতিতে অপেক্ষা করবেন না</strong><p>এই ওয়েবসাইট কোনো জরুরি কল সেন্টার নয়। কল করতে নিচের নম্বর ব্যবহার করুন।</p></div></div><div class="contact-cards">${details('999','জাতীয় জরুরি সেবা','পুলিশ · ফায়ার · অ্যাম্বুলেন্স',true)}${details('16699','সরকারি আইনি সহায়তা','National Legal Aid')}${women?details('109','নারী ও শিশু সহায়তা','সহিংসতা প্রতিরোধ হেল্পলাইন'):''}</div>
  ${f.slug==='emergency-sos-gesture'?`<div class="gesture-message">${icon('lock',20)}<span>Gesture-based SOS এখন সক্রিয় নয়। ফোনের permission, service integration ও নিরাপত্তা যাচাইয়ের পর এটি যোগ করা যাবে।</span></div>`:''}
  <p class="source-line">সূত্র: <a target="_blank" rel="noopener noreferrer" href="https://bangladesh.gov.bd/">Bangladesh National Portal ${icon('external',13)}</a> · <a target="_blank" rel="noopener noreferrer" href="https://nlaso.gov.bd/">National Legal Aid ${icon('external',13)}</a></p></div>`;}
-function featurePage(f){const safety=f.group==='safety';return `<div class="page-back"><a href="${ROOT}">${icon('left',17)} Back to Public Dashboard</a><span><span class="status-dot"></span> FOUNDATION MODE · NO LIVE INTEGRATIONS</span></div>
+function featurePage(f){const safety=f.group==='safety';return `<div class="page-back"><a href="${ROOT}">${icon('left',17)} Back to Public Dashboard</a><span><span class="status-dot"></span> VERIFY ALL LEGAL SOURCES</span></div>
  <section class="feature-hero"><div class="feature-hero-copy">${badge(`${icon(f.icon,15)} FOR PUBLIC`,safety?'rose':'gold')}<h1>${f.title}</h1><h2>${f.bn}</h2><p>${f.summary}</p><div class="feature-hero-points"><span>${icon('check',14)} সহজ ব্যবহার</span><span>${icon('check',14)} Responsive UI</span></div></div><img src="/previews/${f.slug}.webp" alt="${f.title} design preview" class="feature-hero-preview"/></section>
- <div class="page-section-title"><div><span class="eyebrow">FEATURE WORKSPACE</span><h2>${safety?'Safety & Support':'Service Workspace'}</h2></div><span class="chip-outline">Frontend foundation only</span></div>
- <div class="detail-grid"><main class="glass-card main-workspace">${safety ? contacts(f):`<div class="panel-heading"><span class="panel-icon">${icon(f.icon,23)}</span><div><h3>${f.title}</h3><p>প্রয়োজনীয় তথ্য নির্বাচন বা লিখুন</p></div></div><div class="privacy-banner">${icon('lock',18)}<span>এই স্ক্রিন এখনো backend-এর সঙ্গে যুক্ত নয়। এখানে আসল মামলা, NID, পাসপোর্ট বা ব্যক্তিগত তথ্য দেবেন না।</span></div><form class="service-form" id="service-form">${f.fields.map(formField).join('')}<button type="submit" class="btn btn-gold form-action">${icon('sparkle',18)} ${f.action} ${icon('arrow',18)}</button><div role="status" class="submission-note" id="submission-message" hidden>${icon('alert',20)}<div><strong>এটি একটি UI foundation — বাস্তব সেবা এখনো চালু হয়নি।</strong><p>আপনার লেখা বা ফাইল কোনো API-তে পাঠানো বা সংরক্ষণ করা হয়নি। ইন্টিগ্রেশন হওয়ার পর এখানে প্রকৃত ফলাফল দেখা যাবে।</p></div></div></form>`}</main>
+ <div class="page-section-title"><div><span class="eyebrow">FEATURE WORKSPACE</span><h2>${safety?'Safety & Support':'Service Workspace'}</h2></div><span class="chip-outline">Cloudflare-powered guidance</span></div>
+ <div class="detail-grid"><main class="glass-card main-workspace">${safety ? contacts(f):`<div class="panel-heading"><span class="panel-icon">${icon(f.icon,23)}</span><div><h3>${f.title}</h3><p>প্রয়োজনীয় তথ্য নির্বাচন বা লিখুন</p></div></div><div class="privacy-banner">${icon('lock',18)}<span>ব্যক্তিগত মামলা, NID, পাসপোর্ট, মোবাইল নম্বর বা গোপন তথ্য লিখবেন না। AI আইনি উত্তর কেবল যাচাইকৃত উৎস থাকলে দেখানো হবে।</span></div><form class="service-form" id="service-form">${f.fields.map(formField).join('')}<button type="submit" class="btn btn-gold form-action">${icon('sparkle',18)} ${f.action} ${icon('arrow',18)}</button><div role="status" aria-live="polite" class="submission-note" id="submission-message" hidden></div></form>`}</main>
  <aside class="detail-aside"><div class="glass-card steps-card"><div class="panel-heading"><span class="panel-icon small">${icon('book',21)}</span><div><h3>${safety?'সহায়তার পথ':'কীভাবে ব্যবহার করবেন'}</h3><p>Quick guide</p></div></div><div class="steps-list">${(safety?['প্রয়োজনীয় নম্বর নির্বাচন করুন','মোবাইল থেকে কল করুন','দ্রুত সংশ্লিষ্ট কর্তৃপক্ষের সহায়তা নিন']:['প্রয়োজন অনুযায়ী সেবা নির্বাচন করুন','উদাহরণ বা সাধারণ তথ্য লিখুন','লাইভ সেবা চালু হলে এখানে ফলাফল পাবেন']).map((s,i)=>`<div><span>0${i+1}</span><p>${s}</p></div>`).join('')}</div></div>
  <div class="glass-card example-card"><div class="panel-heading"><span class="panel-icon small">${icon('help',21)}</span><div><h3>Popular Topics</h3><p>দ্রুত ধারণা নিন</p></div></div><div class="topic-list">${f.examples.map(s=>`<div>${icon('check',15)}${s}</div>`).join('')}</div></div>
  <a class="aside-action" href="${link('emergency-call')}">${icon('phone',20)}<div><strong>জরুরি যোগাযোগ</strong><p>999 · 16699</p></div>${icon('arrow',18)}</a></aside></div>`;}
@@ -100,8 +100,75 @@ function bindControls(){
   document.querySelector('[data-close-menu]')?.addEventListener('click',()=>{menuOpen=false;render();});
   document.querySelector('[data-size]')?.addEventListener('click',()=>{enlarged=!enlarged;render();});
   const search=document.getElementById('feature-search'); if(search) search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();let visible=0;document.querySelectorAll('.feature-card').forEach(card=>{const shown=card.dataset.search.includes(q);card.hidden=!shown;if(shown)visible++;});document.querySelectorAll('.category').forEach(g=>{const count=g.querySelectorAll('.feature-card:not([hidden])').length;g.hidden=!count;g.querySelector('.group-count').textContent=String(count).padStart(2,'0');});document.getElementById('empty-search').hidden=visible>0;});
-  document.getElementById('service-form')?.addEventListener('submit',e=>{e.preventDefault();document.getElementById('submission-message').hidden=false;});
+  document.getElementById('service-form')?.addEventListener('submit', handleWorkflowSubmit);
   const fileInput=document.querySelector('input[type=file]');if(fileInput)fileInput.addEventListener('change',()=>{const label=document.getElementById('file-label');if(label)label.textContent=fileInput.files?.[0]?.name||'কোনো ফাইল নির্বাচন করা হয়নি';});
 }
 window.addEventListener('popstate',()=>{menuOpen=false;render();});
 render();
+
+// Never add API tokens or other secrets to site/app.js. Only the backend sees them.
+async function handleWorkflowSubmit(event) {
+  event.preventDefault();
+  const f=currentFeature(), form=event.currentTarget;
+  const result=document.getElementById('submission-message');
+  const button=form.querySelector('[type=submit]');
+  if (!f||!result||!button)return;
+  result.hidden=false;
+  result.replaceChildren();
+  if (form.querySelector('input[type=file]')?.files?.length) {
+    writeResult(result,'ফাইল আপলোড এখনো চালু হয়নি।','দয়া করে কোনো ব্যক্তিগত দলিল পাঠাবেন না।',[],false);
+    return;
+  }
+  const values={};
+  for (const [key,value] of new FormData(form).entries()) {
+    if (typeof value==='string' && value.trim()) values[key]=value.trim();
+  }
+  if (Object.keys(values).length===0 && f.group==='ai') {
+    writeResult(result,'ইনপুট প্রয়োজন','প্রথমে আপনার সাধারণ প্রশ্ন বা বিবরণ লিখুন।',[],false);
+    return;
+  }
+  button.disabled=true;
+  const old=button.innerHTML;
+  button.textContent='যাচাই করা হচ্ছে…';
+  let timeout;
+  try {
+    const controller=new AbortController();
+    timeout=setTimeout(()=>controller.abort(),26000);
+    const response=await fetch(`/api/workflows/${f.slug}`,{
+      method:'POST', headers:{'content-type':'application/json'},
+      body:JSON.stringify(values),signal:controller.signal,credentials:'same-origin',cache:'no-store'
+    });
+    const output=await response.json();
+    writeResult(result,output.ok?(output.title||'যাচাইকৃত ফলাফল'):'এখন ফলাফল দেওয়া যাচ্ছে না',output.answer||output.message||'অনুগ্রহ করে পরে চেষ্টা করুন।',output.sources||[],Boolean(output.ok));
+    if (output.disclaimer) addText(result,output.disclaimer,'workflow-disclaimer');
+  } catch {
+    writeResult(result,'সংযোগে সমস্যা হয়েছে','ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',[],false);
+  } finally {
+    clearTimeout(timeout);
+    button.disabled=false;
+    button.innerHTML=old;
+  }
+}
+function addText(parent,value,className='') {
+  const el=document.createElement('p');
+  if(className)el.className=className;
+  el.textContent=String(value);
+  parent.append(el);
+  return el;
+}
+function writeResult(parent,title,message,sources,success) {
+  parent.replaceChildren();
+  parent.classList.toggle('result-success',success);
+  const h=document.createElement('strong');h.textContent=title;parent.append(h);
+  const p=addText(parent,message,'workflow-answer');p.style.whiteSpace='pre-wrap';
+  if (!sources.length) return;
+  const heading=document.createElement('h4');heading.textContent='সূত্র / Official Sources';parent.append(heading);
+  const list=document.createElement('ul');list.className='workflow-sources';
+  for (const source of sources) {
+    if (!source.url || !/^https:\/\/[^\s]+$/.test(source.url)) continue;
+    const item=document.createElement('li'),anchor=document.createElement('a');
+    anchor.href=source.url;anchor.target='_blank';anchor.rel='noopener noreferrer';
+    anchor.textContent=source.title||source.url;item.append(anchor);list.append(item);
+  }
+  parent.append(list);
+}

@@ -1,0 +1,113 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import api, {FEATURES, AI_FEATURES} from '../worker/index.js';
+const BASE='https://public.lexglobalbd.example';
+const sampleSource={score:0.89,text:'বাংলাদেশের সরকারি আইনগত উৎসের উদাহরণ। আইনজীবীর সাথে যোগাযোগ করুন। প্রাসঙ্গিক আইন সরকারি ওয়েবসাইটে প্রকাশিত আছে। উদাহরণ হিসেবে দীর্ঘ যাচাইকৃত নথির সারাংশ।',item:{key:'https://bdlaws.minlaw.gov.bd/act-1.html',timestamp:1_700_000_000,metadata:{title:'Official Bangladesh law'}}};
+const sources={ get:(name)=>({search:async()=>({chunks:[sampleSource]})}) };
+const ai={run:async()=>({choices:[{message:{content:'সূত্র [1] অনুসারে এই প্রশ্নের প্রাথমিক ধারণা পাওয়া যায়। তবে নির্দিষ্ট অবস্থার জন্য আইনজীবী দেখান।'}}]})};
+const env=(override={})=>({ASSETS:{fetch:()=>new Response('ui')},AI:ai,AI_SEARCH:sources,LEGAL_SEARCH_INSTANCE:'verified-laws', ...override});
+const req=(path,body={},headers={})=>new Request(BASE+path,{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
+const call=async(request,e=env())=>{const r=await api.fetch(request,e);return {status:r.status,json:await r.json(),headers:r.headers};};
+
+test('reports all eleven features and runtime status',async()=>{
+  const r=await call(new Request(BASE+'/api/features'));assert.equal(r.json.features.length,11);
+  assert.deepEqual(FEATURES.length,11);assert.equal(AI_FEATURES.size,3);
+  assert.equal(r.json.features[0].status,'requires_verified_source');
+  const health=await call(new Request(BASE+'/api/health'));assert.equal(health.json.legalAnsweringEnabled,true);
+  assert.equal(health.json.dataStorageEnabled,false);
+});
+
+test('official guidance returns without AI or Search',async()=>{
+  for (const slug of FEATURES.filter(s=>!AI_FEATURES.has(s))){
+    const r=await call(req('/api/workflows/'+slug,{}),env({AI:undefined,AI_SEARCH:undefined}));
+    assert.equal(r.status,200,slug);assert.equal(r.json.mode,'official_guide');
+    for (const source of r.json.sources)assert.match(source.url,/^https:\/\/.+\.gov\.bd\//);
+  }
+});
+
+test('legal answer is generated only with official source and matching citation',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'জমি নিয়ে আইনি প্রশ্নের সাধারণ আলোচনা করবেন?'}));
+  assert.equal(r.status,200);assert.equal(r.json.mode,'grounded_ai');assert.equal(r.json.sources.length,1);
+  assert.match(r.json.answer,/\[1\]/);assert.equal(r.json.stored,false);
+  assert.equal(r.headers.get('cache-control'),'no-store, private');
+});
+
+test('AI legal, draft and case analysis all work through shared grounded engine',async()=>{
+  for (const [slug,body] of [
+    ['ai-legal-assistant',{question:'আইন বিষয়ে কোন সূত্র জানা যায়?'}],
+    ['instant-legal-draft',{document:'আইনি নোটিশ',purpose:'ভাড়া বিষয়ে জানতে চাই'}],
+    ['ai-case-analysis',{type:'দেওয়ানি',facts:'জমি নিয়ে সাধারণ বিরোধের একটি উদাহরণ'}]
+  ]){assert.equal((await call(req('/api/workflows/'+slug,body))).status,200);}
+});
+
+test('no verified index -> fail closed and never call AI',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({LEGAL_SEARCH_INSTANCE:''}));
+  assert.equal(r.status,503);assert.equal(r.json.code,'LEGAL_SOURCES_NOT_CONFIGURED');
+});
+
+test('rejected sources cannot be used by AI',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI_SEARCH:{get:()=>({search:async()=>({chunks:[{...sampleSource,item:{key:'https://bad.example/article'}}]})})}}));
+  assert.equal(r.status,422);assert.equal(r.json.code,'VERIFIED_SOURCE_NOT_FOUND');
+});
+
+test('rejected low-confidence source cannot be used by AI',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI_SEARCH:{get:()=>({search:async()=>({chunks:[{...sampleSource,score:0.10}]})})}}));
+  assert.equal(r.status,422);assert.equal(r.json.code,'VERIFIED_SOURCE_NOT_FOUND');
+});
+
+test('model output without a citation is rejected',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI:{run:async()=>({response:'আইন সম্পর্কে একটি আংশিক অথচ উৎসবিহীন উত্তর।'})}}));
+  assert.equal(r.status,422);assert.equal(r.json.code,'UNVERIFIED_ANSWER');
+});
+
+test('model output inventing citation reference is rejected',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI:{run:async()=>({response:'সূত্র [22] থেকে এই দাবির প্রমাণ পাওয়া যায়, কিন্তু এটি সঠিক নয়।'})}}));
+  assert.equal(r.status,422);assert.equal(r.json.code,'UNVERIFIED_ANSWER');
+});
+
+test('AI upstream error returns safe message',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI:{run:async()=>{throw new Error('private secret never return')}}}));
+  assert.equal(r.status,503);assert.equal(r.json.code,'AI_TEMPORARILY_UNAVAILABLE');assert.doesNotMatch(JSON.stringify(r.json),/private secret/);
+});
+
+test('unknown workflow is not available',async()=>{assert.equal((await call(req('/api/workflows/unknown'))).status,404);});
+
+test('cross-origin POST is blocked',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ উদাহরণ কী?'},{origin:'https://attacker.example'}));
+  assert.equal(r.status,403);assert.equal(r.json.code,'ORIGIN_NOT_ALLOWED');
+});
+
+test('rate limiter is checked',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ উদাহরণ কী?'}),env({PUBLIC_AI_RATE:{limit:async()=>({success:false})}}));
+  assert.equal(r.status,429);
+});
+
+test('unsupported file data is blocked',async()=>{
+  const r=await call(req('/api/workflows/ai-case-analysis',{file:'base64:private'}));
+  assert.equal(r.status,400);assert.equal(r.json.code,'NO_FILES');
+});
+
+test('missing input is blocked',async()=>{
+  const r=await call(req('/api/workflows/instant-legal-draft',{}));
+  assert.equal(r.status,422);assert.equal(r.json.code,'MISSING_INPUT');
+});
+
+test('invalid JSON is blocked',async()=>{
+  const r=await api.fetch(new Request(BASE+'/api/workflows/ai-legal-assistant',{method:'POST',headers:{'content-type':'application/json'},body:'{' }),env());
+  assert.equal(r.status,400);assert.equal((await r.json()).code,'INVALID_JSON');
+});
+
+test('content over 8 KB is rejected',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'a'.repeat(9000)}));
+  assert.equal(r.status,413);assert.equal(r.json.code,'PAYLOAD_TOO_LARGE');
+});
+
+test('REST token fallback requires secret and account, does not reveal them',async()=>{
+  const e=env({AI:undefined,CF_AI_USE_REST:'true',CF_ACCOUNT_ID:'test-account',CF_AI_API_TOKEN:undefined});
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন বিষয়ে কী জানা যায়?'}),e);
+  assert.equal(r.status,503);assert.equal(r.json.code,'AI_TEMPORARILY_UNAVAILABLE');
+});
+
+test('static site requests delegate to asset binding',async()=>{
+  const r=await api.fetch(new Request(BASE+'/public/ai-legal-assistant'),env());assert.equal(await r.text(),'ui');
+});
