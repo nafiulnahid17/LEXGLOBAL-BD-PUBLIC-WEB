@@ -1,26 +1,22 @@
-# QA — Cloudflare Workers AI Integration v2
+# QA — Native AI Binding Only v2.1
 
-## Automated tests
+## Local automated checks
 
-`npm test` runs Node.js test cases with mocked Cloudflare bindings. Scenarios include:
-- 11 features and configuration health
-- Official guidance response for every non-AI public route
-- Three AI workflow input types with official source grounding
-- Failure closed for missing source index, invalid domains, low similarity
-- Blocking uncited and out-of-range citations
-- Safe response on model failure, cross-origin abuse, overlong request, invalid JSON, file upload
-- Approximate rate limiting and static asset fallback
+Run `npm test`, `node --check worker/index.js`, `node --check site/app.js`.
 
-Also run `node --check worker/index.js` and `node --check site/app.js`.
+- All 11 Public routes and AI/official-guide separation.
+- All three legal AI workflows call native `env.AI.run()` with mocked AI and AI Search bindings.
+- Source grounding, domain restrictions, citation constraints, missing-source fail-closed.
+- Missing AI binding fails closed regardless of external configuration values.
+- Input validation, uploads disabled, rate limits, cross-origin blocking and error redaction.
+- Worker source contains no REST-based Cloudflare AI inference or bearer-token fallback.
 
-## Production verification NOT YET performed
+## Not yet verified in production
 
-- Cloudflare account authorization and deployment
-- Real Workers AI token validity / native AI binding inference
-- AI Search index creation and trustworthy legal-text ingestion
-- Bengali legal-domain correctness evaluated by licensed reviewers
-- Actual response latency and throughput benchmarks
-- Cloudflare account billing and data residency/privacy settings
-- End-to-end browser visual accessibility review
+- Cloudflare account binding provisioned on a deployed Worker.
+- Real AI Search index populated with verified Bangladesh law.
+- Actual Qwen model quality, cost, Bengali performance, speed and citation correctness.
+- Legal subject-matter review and sensitive-data privacy clearance.
+- Frontend real-browser interaction and live Cloudflare routing.
 
-**No model can guarantee zero legal mistakes.** The app requires official-source retrieval, displays citations, and rejects some malformed responses to reduce risk. A human review and continuous source maintenance are still essential.
+No guarantee of 100% accuracy. Always review source citations and consult a lawyer for consequential decisions.

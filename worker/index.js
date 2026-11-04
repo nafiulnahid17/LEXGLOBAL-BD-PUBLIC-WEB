@@ -160,24 +160,11 @@ function extractAnswer(result) {
   return typeof text === 'string' ? text.trim() : '';
 }
 async function runAI(env, payload) {
+  // Inference is ONLY through Cloudflare's native Workers AI binding.
+  // No REST requests, bearer tokens, account IDs or gateway routing are supported.
+  if (!env.AI || typeof env.AI.run !== 'function') throw new Error('AI_BINDING_NOT_CONFIGURED');
   const model = env.AI_MODEL || MODEL;
-  // When running in the Worker, a binding avoids unnecessary REST HTTP/token overhead.
-  if (env.AI && env.CF_AI_USE_REST !== 'true') {
-    const options = env.AI_GATEWAY_ID ? {gateway:{id:env.AI_GATEWAY_ID,skipCache:true,collectLog:false}} : undefined;
-    return withDeadline(env.AI.run(model, payload, options), 20_000);
-  }
-  // Optional REST mode for a user-provided Cloudflare Workers AI API token.
-  if (!env.CF_AI_API_TOKEN || !env.CF_ACCOUNT_ID) throw new Error('AI_NOT_CONFIGURED');
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-  try {
-    const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${encodeURIComponent(env.CF_ACCOUNT_ID)}/ai/run/${model}`,
-      {method:'POST',headers:{Authorization:`Bearer ${env.CF_AI_API_TOKEN}`,'content-type':'application/json'},body:JSON.stringify(payload),signal:controller.signal});
-    if (!response.ok) throw new Error('MODEL_UPSTREAM_ERROR');
-    const result = await response.json();
-    if (result.success === false) throw new Error('MODEL_UPSTREAM_ERROR');
-    return result;
-  } finally {clearTimeout(timeout);}
+  return withDeadline(env.AI.run(model, payload), 20_000);
 }
 function validatedAnswer(text, sourceCount) {
   // Citation references are checked server-side. This DOES NOT prove full factual correctness.
@@ -192,6 +179,7 @@ async function handleLegal(slug, input, env) {
     return fail(code,code==='MISSING_INPUT'?'প্রয়োজনীয় সাধারণ তথ্য লিখুন।':'তথ্যের ধরন বা দৈর্ঘ্য সঠিক নয়।',422);
   }
   if (!env.LEGAL_SEARCH_INSTANCE) return fail('LEGAL_SOURCES_NOT_CONFIGURED','যাচাইকৃত আইনি উৎস এখনো যুক্ত হয়নি। ভুল তথ্য এড়াতে AI উত্তর বন্ধ রাখা হয়েছে।',503);
+  if (!env.AI || typeof env.AI.run !== 'function') return fail('AI_BINDING_NOT_CONFIGURED','Cloudflare Workers AI binding এখনও সংযুক্ত নয়।',503);
   let sources;
   try {sources=await lookupTrustedSources(env,query);} catch {return fail('SOURCE_LOOKUP_FAILED','বিশ্বস্ত উৎস যাচাই করা যায়নি। পরে চেষ্টা করুন।',503);}
   if (!sources?.length) return fail('VERIFIED_SOURCE_NOT_FOUND','এই প্রশ্নের জন্য যথেষ্ট যাচাইকৃত সরকারি উৎস পাওয়া যায়নি। একজন আইনজীবীর পরামর্শ নিন।',422);
@@ -220,8 +208,8 @@ export default {
     const url = new URL(request.url);
     const path = url.pathname.replace(/\/$/,'');
     if (!path.startsWith('/api/')) return env.ASSETS ? env.ASSETS.fetch(request) : fail('NO_STATIC_ASSETS','Static assets binding missing',503);
-    if (request.method==='GET' && path==='/api/health') return reply({ok:true,service:'LexGlobal BD Public',status:'ready',aiBindingConfigured:Boolean(env.AI || (env.CF_AI_API_TOKEN && env.CF_ACCOUNT_ID)),legalSourceIndexConfigured:Boolean(env.LEGAL_SEARCH_INSTANCE),legalAnsweringEnabled:Boolean(env.LEGAL_SEARCH_INSTANCE && (env.AI || (env.CF_AI_API_TOKEN && env.CF_ACCOUNT_ID))),dataStorageEnabled:false});
-    if (request.method==='GET' && path==='/api/features') return reply({ok:true,features:FEATURES.map(slug=>({slug,status:AI_FEATURES.has(slug)?(env.LEGAL_SEARCH_INSTANCE?'requires_verified_source':'awaiting_legal_sources'):'official_guide'}))});
+    if (request.method==='GET' && path==='/api/health') return reply({ok:true,service:'LexGlobal BD Public',status:'ready',aiProvider:'cloudflare_workers_ai_binding',aiBindingConfigured:typeof env.AI?.run==='function',legalSourceIndexConfigured:Boolean(env.LEGAL_SEARCH_INSTANCE && env.AI_SEARCH),legalAnsweringEnabled:Boolean(env.LEGAL_SEARCH_INSTANCE && env.AI_SEARCH && typeof env.AI?.run==='function'),dataStorageEnabled:false});
+    if (request.method==='GET' && path==='/api/features') return reply({ok:true,features:FEATURES.map(slug=>({slug,status:!AI_FEATURES.has(slug)?'official_guide':!env.AI || typeof env.AI.run!=='function'?'awaiting_ai_binding':env.LEGAL_SEARCH_INSTANCE && env.AI_SEARCH?'requires_verified_source':'awaiting_legal_sources'}))});
     const matched=path.match(/^\/api\/workflows\/([a-z0-9-]+)$/);
     if (!matched || !FEATURES.includes(matched[1])) return fail('NOT_FOUND','Endpoint not found',404);
     if (request.method!=='POST') return reply({ok:false,code:'METHOD_NOT_ALLOWED'},405,{allow:'POST'});

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import api, {FEATURES, AI_FEATURES} from '../worker/index.js';
 const BASE='https://public.lexglobalbd.example';
 const sampleSource={score:0.89,text:'বাংলাদেশের সরকারি আইনগত উৎসের উদাহরণ। আইনজীবীর সাথে যোগাযোগ করুন। প্রাসঙ্গিক আইন সরকারি ওয়েবসাইটে প্রকাশিত আছে। উদাহরণ হিসেবে দীর্ঘ যাচাইকৃত নথির সারাংশ।',item:{key:'https://bdlaws.minlaw.gov.bd/act-1.html',timestamp:1_700_000_000,metadata:{title:'Official Bangladesh law'}}};
@@ -102,10 +103,35 @@ test('content over 8 KB is rejected',async()=>{
   assert.equal(r.status,413);assert.equal(r.json.code,'PAYLOAD_TOO_LARGE');
 });
 
-test('REST token fallback requires secret and account, does not reveal them',async()=>{
-  const e=env({AI:undefined,CF_AI_USE_REST:'true',CF_ACCOUNT_ID:'test-account',CF_AI_API_TOKEN:undefined});
+test('missing native AI binding fails closed without an alternate transport',async()=>{
+  const e=env({AI:undefined});
   const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন বিষয়ে কী জানা যায়?'}),e);
-  assert.equal(r.status,503);assert.equal(r.json.code,'AI_TEMPORARILY_UNAVAILABLE');
+  assert.equal(r.status,503);assert.equal(r.json.code,'AI_BINDING_NOT_CONFIGURED');
+  const health=await call(new Request(BASE+'/api/health'),e);
+  assert.equal(health.json.aiBindingConfigured,false);
+  assert.equal(health.json.legalAnsweringEnabled,false);
+  const f=await call(new Request(BASE+'/api/features'),e);
+  assert.equal(f.json.features[0].status,'awaiting_ai_binding');
+});
+
+test('native env.AI.run is the only model invocation interface',async()=>{
+  let called=0;let modelSeen='';let optionsSeen='unset';
+  const binding={run:async(model,payload,options)=>{
+    called++;modelSeen=model;optionsSeen=options;
+    assert.equal(payload.messages[0].role,'system');
+    return {response:'উৎস [1] অনুযায়ী প্রাথমিক সাধারণ তথ্য দেওয়া হলো; বিস্তারিত আইনজীবীর সঙ্গে যাচাই করতে হবে।'};
+  }};
+  const e=env({AI:binding});
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন বিষয়ে কী জানা যায়?'}),e);
+  assert.equal(r.status,200);assert.equal(r.json.mode,'grounded_ai');
+  assert.equal(called,1);assert.equal(modelSeen,'@cf/qwen/qwen3-30b-a3b-fp8');
+  assert.equal(optionsSeen,undefined);
+});
+
+test('worker source has no REST or token fallback implementation',async()=>{
+  const source=await readFile(new URL('../worker/index.js',import.meta.url),'utf8');
+  assert.doesNotMatch(source,/api\.cloudflare\.com|Bearer |CF_AI_USE_REST|CF_AI_API_TOKEN|CF_ACCOUNT_ID|AI_GATEWAY_ID/);
+  assert.match(source,/env\.AI\.run\(model, payload\)/);
 });
 
 test('static site requests delegate to asset binding',async()=>{

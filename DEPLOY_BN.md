@@ -1,6 +1,15 @@
-# LexGlobal BD Public — Cloudflare Deploy ও AI Configuration
+# LexGlobal BD Public — Cloudflare Workers AI Binding Only
 
-## ১. GitHub থেকে চালু
+## কী পরিবর্তন হলো
+
+- `wrangler.jsonc` ফাইলে `ai: { binding: "AI" }` আছে।
+- `worker/index.js`-এ AI inference-এর **একমাত্র** পদ্ধতি `env.AI.run(model, payload)`।
+- REST API, account ID, bearer-token inference, manual AI key এবং AI Gateway forwarding নেই।
+- Binding অনুপস্থিত হলে backend `AI_BINDING_NOT_CONFIGURED` দেখায়; অনুমান করে উত্তর দেয় না।
+
+## GitHub থেকে Cloudflare-এ deploy
+
+Cloudflare account-এ Workers AI ও Workers ব্যবহার করার অনুমতি থাকতে হবে। Node.js 20+ এবং Wrangler 4.68.1+ ব্যবহার করুন।
 
 ```bash
 npm install
@@ -9,41 +18,26 @@ npx wrangler login
 npx wrangler deploy
 ```
 
-Worker name: `lexglobalbd-public-foundation` (প্রয়োজনে `wrangler.jsonc`-এ পরিবর্তন করুন)। Deploy করার পর `/api/health` ও `/api/features` খুলে পরীক্ষা করুন। `site/` হলো frontend এবং `worker/index.js` হলো API।
+`wrangler login` শুধু deploy করার জন্য Cloudflare CLI authentication; AI inference-এর জন্য কোনো API token লাগবে না।
 
-## ২. Cloudflare AI মডেল
+## আইনগত তথ্যের AI Search binding
 
-`wrangler.jsonc`-এ `AI` binding যোগ করা হয়েছে। Native Worker binding-এর জন্য আলাদা AI API token দরকার নেই। সর্বনিম্ন overhead-এর জন্য এটিই default; মডেল `@cf/qwen/qwen3-30b-a3b-fp8`। Gateway `default` যুক্ত এবং আইনগত query-এর log collection/cache বন্ধ রাখার চেষ্টা করা হয়। Cloudflare-এর নিজের privacy/billing settings আলাদা করে review করুন।
+1. Cloudflare Dashboard-এ AI Search instance তৈরি করুন। এতে সর্বশেষ সরকারি `*.gov.bd` মূল আইনের নির্ভরযোগ্য ডকুমেন্ট index করুন; `source_url` metadata-তে আসল HTTPS সরকারি URL রাখুন।
+2. `wrangler.jsonc`-এর `vars.LEGAL_SEARCH_INSTANCE`-এ instance-এর **name/ID** বসান। `AI_SEARCH` namespace binding ইতিমধ্যে কনফিগার করা।
+3. `npx wrangler deploy` দিয়ে Worker প্রকাশ করুন।
+4. `GET /api/health`-এ `aiProvider: "cloudflare_workers_ai_binding"`, `aiBindingConfigured: true` এবং `legalSourceIndexConfigured: true` দেখুন। এগুলো কেবল configuration readiness; **যাচাইকৃত source content, output accuracy বা model latency প্রমাণ করে না**।
+5. নিরাপদ test questions দিয়ে AI Assistant, Draft এবং Case Analysis চালিয়ে আসল আইন ও citations আলাদাভাবে যাচাই করুন।
 
-## ৩. Cloudflare token mode (ঐচ্ছিক)
+**আইনি index না থাকলে AI output ইচ্ছাকৃতভাবে বন্ধ থাকবে** (`LEGAL_SOURCES_NOT_CONFIGURED`)। কোনো real legal documents, NID, passport, ব্যক্তিগত মামলা বা গোপন তথ্য privacy review ছাড়া পাঠাবেন না।
 
-Cloudflare Dashboard → Workers AI → Use REST API → Create Workers AI API Token. এই token যদি ব্যবহার করতে চান:
+## UI/API এবং সীমাবদ্ধতা
 
-```bash
-npx wrangler secret put CF_AI_API_TOKEN
-```
+- `site/` এ আগের Premium Navy+Gold ১১টি Public UI page অক্ষত আছে; login/signup নেই।
+- সরকারি গাইডের ৮টি route দ্রুত curated official links দেয়; সরকারি API-তে আবেদন জমা দেয় না।
+- AI response-এর citation যাচাই এবং rate limit আছে, কিন্তু আইনি ভুল ১০০% ঠেকানোর গ্যারান্টি নেই।
+- Emergency SOS Gesture সত্যিকারের জরুরি বার্তা/লোকেশন পাঠায় না।
+- Live deployment এবং বাস্তব Cloudflare Workers AI result এই প্যাকেজ থেকে verify করা হয়নি।
 
-`wrangler.jsonc` এর `vars`-এ নিজস্ব `CF_ACCOUNT_ID` দিন এবং `CF_AI_USE_REST` = `"true"` করুন। Token কখনো repo, frontend বা screenshot-এ রাখবেন না। শুধু 'deployment token' দিয়ে Workers AI model call হবে **এমন নিশ্চয়তা নেই** — Workers AI read/edit permissions দরকার।
-
-## ৪. ভুল উত্তর কমানোর জন্য আইনি উৎস বাধ্যতামূলক
-
-1. Cloudflare Dashboard থেকে **AI Search** instance তৈরি করুন।
-2. সরকারি `*.gov.bd` থেকে মূল আইনের আপডেটেড ও যাচাইকৃত ডকুমেন্ট index করুন। Source metadata-তে `source_url` হিসেবে মূল সরকারি HTTPS URL রাখুন।
-3. `wrangler.jsonc`-এ `LEGAL_SEARCH_INSTANCE`-এর খালি value বদলে instance ID দিন।
-4. Deploy-এর পর `/api/health`-এ `legalAnsweringEnabled: true` দেখুন এবং বাস্তব কেসের আইনগত উত্তর মানুষ দিয়ে যাচাই করুন। **শুধু এই flag দেখানো মানে data/index/accuracy পরীক্ষা পাস করেছে নয়।**
-
-আইনি উৎস না থাকলে AI Assistant, Draft ও Case Analysis সচেতনভাবে error দেখাবে, বানানো আইন বলবে না। এই তিনটি AI feature-এ ব্যক্তিগত মামলা/কাগজ/NID ইনপুট দেবেন না যতক্ষণ না security/privacy review সম্পন্ন হয়েছে। ফাইল আপলোড বন্ধ।
-
-## ৫. বাস্তব QA
-
-```bash
-npm test
-```
-
-তারপর browser-এ ১১টি `/public/<feature>` route, ৩টি AI workflow, ৮টি direct guidance route, এবং Cloudflare rate limiting পরীক্ষা করুন। কোনো official BRTA/passport/tax API linked নয়; এই পেজগুলো কেবল সরকারি পোর্টালের link দেখায়। Emergency Gesture এখনো real SOS পাঠায় না।
-
-## ৬. Security ও Costs
-
-- Frontend-এ Login/Signup নেই। Public API-এর জন্য Cloudflare WAF/Turnstile এবং strict global quota বিবেচনা করুন। Rate limit best effort; পুরো পৃথিবীজুড়ে hard global limit নয়।
-- Workers AI-তে usage/cost plan অনুযায়ী হবে। Turn off AI Gateway logging and review actual Cloudflare data retention settings.
-- কখনো confidential legal data AI backend-এ পাঠাবেন না privacy/consent policy ছাড়া।
+Cloudflare official docs:
+- https://developers.cloudflare.com/workers-ai/configuration/bindings/
+- https://developers.cloudflare.com/ai-search/api/migration/workers-binding/

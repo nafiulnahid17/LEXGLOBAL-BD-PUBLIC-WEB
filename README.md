@@ -1,6 +1,6 @@
-# LexGlobal BD — For Public | Cloudflare AI Backend v2
+# LexGlobal BD — For Public | Native Cloudflare Workers AI Binding v2.1
 
-**Status:** Code is integrated and unit-tested. Live Cloudflare deployment, real model latency, index contents, and production accuracy cannot be verified until your Cloudflare account has the required resources. No Cloudflare secrets are included.
+**Status:** Native `env.AI` binding implementation and mocked tests complete. Production Cloudflare deployment and live inference have NOT been performed. No model credential is required or accepted by the inference code.
 
 The existing Premium Navy Blue + Gold frontend with all **11 public feature pages** remains intact. No login / signup has been introduced. Submit buttons now call the same-origin Cloudflare Worker API and show results or explicit configuration errors; data and sources are rendered as text rather than injected HTML.
 
@@ -8,8 +8,8 @@ The existing Premium Navy Blue + Gold frontend with all **11 public feature page
 
 - **Static Assets + Worker:** `site/` static content and `worker/index.js` on the Cloudflare Workers edge.
 - **Fast model:** `@cf/qwen/qwen3-30b-a3b-fp8`, a multilingual 30B MoE model with about 3B active parameters. This is a practical low-overhead default, **not a benchmarked claim that it is the fastest model for every prompt**.
-- **Binding first:** `env.AI.run()` via Cloudflare Workers AI binding (no token needed inside the Worker). Optional Cloudflare AI Gateway `default`, configured for disabled AI logs and per-request cache bypass to avoid storing private legal prompts.
-- **REST/token fallback:** `CF_AI_USE_REST=true`, `CF_ACCOUNT_ID`, and secret `CF_AI_API_TOKEN`. This works with Cloudflare's **Workers AI API token**, not arbitrary deployment tokens. Do not place tokens in public GitHub or browser JavaScript.
+- **Binding only:** `wrangler.jsonc` declares `"ai": { "binding": "AI" }`. The sole inference path is `env.AI.run(model, payload)`. No REST mode, no Cloudflare account ID, no bearer token, and no AI Gateway required. Missing binding produces `AI_BINDING_NOT_CONFIGURED` and never falls back to HTTP.
+- **Privacy caution:** No AI Gateway routing is configured. Review Cloudflare account-level AI inference retention and pricing before processing sensitive information.
 - **Source-grounded legal AI:** `AI_SEARCH` namespace binding queries the `LEGAL_SEARCH_INSTANCE` collection. Hybrid retrieval (max 5, score >= 0.55) must return official `*.gov.bd` HTTPS sources before a legal answer or draft may be generated. Outputs with no valid `[n]` citation are rejected. **This reduces some hallucination risks, but cannot guarantee zero legal errors.** All important legal facts require human review.
 - **Low latency deterministic government guides:** Land, BRTA, Tax, Passport, Expat, NariSafe and Emergency routes respond immediately from curated official URLs — they do *not* call the LLM or claim a government integration.
 - **Abuse controls:** 8 KB JSON-only requests, origin check, approximate 12/minute Cloudflare per-IP rate limit, no document uploads, and no server-side storage of user inputs. With no user accounts, the public endpoint still needs production abuse monitoring and privacy review.
@@ -43,7 +43,7 @@ npx wrangler login
 npx wrangler deploy
 ```
 
-See `DEPLOY_BN.md` for a step-by-step Cloudflare AI Search + secret setup and verification. **Do not commit secrets**. For an API-token-based CI deployment, use `CLOUDFLARE_API_TOKEN` as a *CI secret with Workers deployment privileges*, not the Workers AI model token.
+See `DEPLOY_BN.md` for Cloudflare Workers AI binding and legal AI Search configuration. `wrangler login` authenticates the deployment CLI; this is separate from AI inference and does not put credentials inside the Worker.
 
 ### Cloudflare AI Search instance
 
@@ -51,13 +51,9 @@ See `DEPLOY_BN.md` for a step-by-step Cloudflare AI Search + secret setup and ve
 2. In `wrangler.jsonc`, set `vars.LEGAL_SEARCH_INSTANCE` to that existing instance ID. AI Search namespace `default` is already bound as `AI_SEARCH`.
 3. Deploy and call `GET /api/health` to verify `legalAnsweringEnabled: true` (configuration readiness, not proof that indexing succeeded). Then perform genuine source-backed legal tests with a human reviewer.
 
-### Optional REST mode
+### Binding-only runtime
 
-```bash
-npx wrangler secret put CF_AI_API_TOKEN  # Workers AI API token; keep secret
-```
-
-Then add `vars.CF_ACCOUNT_ID` to `wrangler.jsonc` and set `vars.CF_AI_USE_REST` to `"true"`, or set them via the Cloudflare environment. Native binding remains recommended for lower overhead.
+The `AI` binding is declared in `wrangler.jsonc`; deployment attaches it to the Worker automatically. Set `LEGAL_SEARCH_INSTANCE` to the name of an indexed **verified** AI Search instance for the three legal workflows. The AI model cannot produce legal answers before trusted retrieval is configured. No alternative inference transport exists.
 
 ## API
 
@@ -82,4 +78,4 @@ Official platform documentation:
 - https://developers.cloudflare.com/workers-ai/models/qwen3-30b-a3b-fp8/
 - https://developers.cloudflare.com/ai-search/api/search/workers-binding/
 - https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/
-- https://developers.cloudflare.com/workers-ai/get-started/rest-api/
+- https://developers.cloudflare.com/workers-ai/get-started/workers-wrangler/
