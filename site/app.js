@@ -196,16 +196,20 @@ function cancelChatPending(){
   chatBusy=false;
 }
 function getRecentChatHistory(){
-  // Only complete prior user/assistant pairs count as conversation context.
+  // Keep actual preceding turns, especially the most recent assistant explanation.
+  // Budget UTF-8 bytes so Bangla conversation stays within the Worker request limit.
   const completed=[];
   for(let i=0;i<chatMessages.length-1;i++){
     if(chatMessages[i].role==='user' && chatMessages[i+1].role==='assistant'){
-      completed.push({role:'user',content:chatMessages[i].content.slice(0,650)});
-      completed.push({role:'assistant',content:chatMessages[i+1].content.slice(0,650)});
+      completed.push({role:'user',content:chatMessages[i].content.slice(0,1100)});
+      completed.push({role:'assistant',content:chatMessages[i+1].content.slice(0,1800)});
       i++;
     }
   }
-  return completed.slice(-8);
+  const recent=completed.slice(-12);
+  const encoder=new TextEncoder();
+  while(recent.length>2 && encoder.encode(JSON.stringify(recent)).byteLength>12500)recent.splice(0,2);
+  return recent;
 }
 function chatScrollToEnd(){
   const feed=document.getElementById('chat-feed');
@@ -240,6 +244,8 @@ function addChatBubble(message){
   stamp.textContent=new Intl.DateTimeFormat('bn-BD',{hour:'2-digit',minute:'2-digit'}).format(new Date(message.at||Date.now()));
   body.append(stamp);
   row.append(avatar,body);feed.append(row);
+  message.row=row;
+  if(message.incomplete)showChatContinue(message);
   chatScrollToEnd();
 }
 function showChatTyping(){
@@ -282,24 +288,27 @@ function initChatControls(){
   }));
   chatScrollToEnd();
 }
-// Read the native Workers AI SSE response as it arrives. Keep all model text in textContent.
-// Some Cloudflare models emit delta "response" tokens; others emit choices[].delta.content.
+// A full response requires a terminal [DONE] event. Preserve finish_reason when the model
+// explicitly reports hitting the output-token limit; do not silently accept truncated text.
 async function consumeAiStream(response,onUpdate){
   if(!response.body)throw new Error('STREAM_UNAVAILABLE');
   const reader=response.body.getReader(),decoder=new TextDecoder();
-  let buffer='',assembled='',doneSeen=false;
+  let buffer='',assembled='',doneSeen=false,finishReason=null;
+  const clean=(value)=>value.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/<think>[\s\S]*$/gi,'').replace(/\[(?:\d{1,3})\]/g,'').trimStart();
   const apply=(block)=>{
     const data=block.split(/\r?\n/).filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n').trim();
     if(!data)return;
     if(data==='[DONE]'){doneSeen=true;return;}
     let value;
     try {value=JSON.parse(data);}catch{return;}
+    if(value?.error)throw new Error('AI_STREAM_ERROR');
+    const status=value.choices?.[0]?.finish_reason??value.finish_reason??value.stop_reason;
+    if(typeof status==='string'&&status)finishReason=status;
     const delta=value.response??value.choices?.[0]?.delta?.content??value.choices?.[0]?.message?.content??'';
     if(typeof delta!=='string'||!delta)return;
     assembled=delta.startsWith(assembled)?delta:assembled+delta;
-    if(assembled.length>6500)throw new Error('STREAM_LIMIT');
-    // Never show internal Qwen reasoning blocks or unsupported numbered citations in preview mode.
-    const visible=assembled.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/<think>[\s\S]*$/gi,'').replace(/\[(?:\d{1,3})\]/g,'').trimStart();
+    if(assembled.length>8500)throw new Error('STREAM_LIMIT');
+    const visible=clean(assembled);
     if(visible)onUpdate(visible);
   };
   try{
@@ -310,22 +319,117 @@ async function consumeAiStream(response,onUpdate){
       let end;
       while((end=buffer.indexOf('\n\n'))!==-1){
         const block=buffer.slice(0,end);buffer=buffer.slice(end+2);apply(block);
+        if(doneSeen)break;
       }
       if(buffer.length>16000)throw new Error('STREAM_LIMIT');
     }
-    if(buffer.trim())apply(buffer);
+    if(!doneSeen){buffer+=decoder.decode();if(buffer.trim())apply(buffer);}
   }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
-  const final=assembled.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/<think>[\s\S]*$/gi,'').replace(/\[(?:\d{1,3})\]/g,'').trim();
+  const final=clean(assembled).trim();
   if(!final)throw new Error('EMPTY_AI_STREAM');
-  onUpdate(final);return final;
+  onUpdate(final);
+  // When the model does not expose finish_reason, long replies ending without sentence
+  // punctuation are treated as possibly cut off. Short greetings need no continuation.
+  const abrupt=final.length>90 && !/[.!?।॥…][”"'\])}*]*$/u.test(final);
+  const complete=doneSeen && !['length','max_tokens','token_limit'].includes(finishReason) && !(finishReason===null&&abrupt);
+  return {text:final,complete,finishReason,doneSeen};
+}
+function joinChatContinuation(before,addition){
+  const tail=before||'',next=(addition||'').trimStart();
+  if(!tail)return next;
+  if(!next)return tail;
+  if(next.startsWith(tail))return next;
+  let overlap=0;
+  for(let n=Math.min(180,tail.length,next.length);n>3;n--){
+    if(tail.slice(-n)===next.slice(0,n)){overlap=n;break;}
+  }
+  if(overlap)return tail+next.slice(overlap);
+  // A one-letter final syllable (e.g. “আপনি ক”) may need the continuation
+  // joined directly; otherwise retain natural spacing.
+  const dangling=/\s[\u0980-\u09ff]$/u.test(tail);
+  const space=/\s$/.test(tail)||/^[,.;!?।\s]/.test(next)||dangling?'': ' ';
+  return tail+space+next;
+}
+function showChatContinue(message){
+  const body=message.row?.querySelector('.chat-bubble-body');
+  if(!body || body.querySelector('.chat-continue'))return;
+  const box=document.createElement('div');box.className='chat-continue';
+  const notice=document.createElement('small');notice.textContent='উত্তরটি অসম্পূর্ণ হতে পারে।';
+  const button=document.createElement('button');button.type='button';button.textContent='↻ উত্তর চালিয়ে যান';
+  button.addEventListener('click',()=>resumeChatAnswer(message));
+  box.append(notice,button);body.append(box);
+}
+function setReplyText(reply,value){
+  const bubble=reply.row?.querySelector('.chat-bubble');
+  reply.content=value;
+  if(bubble)bubble.textContent=value;
+  chatScrollToEnd();
+}
+async function runChatReply(question,history,reply,controller,generation,manual=false){
+  let collected=reply?.content||'',complete=false;
+  const calls=manual?1:2;
+  for(let attempt=0;attempt<calls;attempt++){
+    const continuing=manual||attempt>0;
+    const before=collected;
+    const params={question,history,stream:true};
+    if(continuing)params.continuation=before.slice(-2200);
+    const response=await fetch('/api/workflows/ai-legal-assistant',{
+      method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(params),
+      credentials:'same-origin',cache:'no-store',signal:controller.signal
+    });
+    const write=(value)=>{
+      if(generation!==chatGeneration)return;
+      document.getElementById('chat-typing')?.remove();
+      const merged=continuing?joinChatContinuation(before,value):value;
+      if(!reply){
+        reply={role:'assistant',content:merged,at:Date.now(),preview:true,sources:[],originalQuestion:question,originalHistory:history,incomplete:false};
+        chatMessages.push(reply);addChatBubble(reply);
+      }else setReplyText(reply,merged);
+    };
+    if(response.ok&&response.headers.get('content-type')?.includes('text/event-stream')){
+      const info=await consumeAiStream(response,write);
+      collected=continuing?joinChatContinuation(before,info.text):info.text;
+      complete=info.complete;
+    }else{
+      const data=await response.json();
+      if(!response.ok||!data.ok)throw new Error(data.code||'AI_REQUEST_FAILED');
+      write(String(data.answer||''));
+      collected=reply?.content||'';
+      complete=data.incomplete!==true;
+    }
+    if(generation!==chatGeneration)return reply;
+    if(complete)break;
+  }
+  if(reply){
+    reply.incomplete=!complete;
+    if(reply.incomplete)showChatContinue(reply);
+  }
+  return reply;
+}
+async function resumeChatAnswer(message){
+  if(chatBusy || !message.incomplete || chatMessages.at(-1)!==message)return;
+  const generation=++chatGeneration, controller=new AbortController();
+  chatController=controller;chatBusy=true;setChatWaiting(true);
+  const button=message.row?.querySelector('.chat-continue');if(button)button.remove();
+  showChatTyping();
+  let timeout;
+  try{
+    timeout=setTimeout(()=>controller.abort(),28000);
+    await runChatReply(message.originalQuestion,message.originalHistory,message,controller,generation,true);
+  }catch{
+    message.incomplete=true;
+    showChatContinue(message);
+  }finally{
+    clearTimeout(timeout);document.getElementById('chat-typing')?.remove();
+    if(generation===chatGeneration){chatBusy=false;chatController=null;setChatWaiting(false);}
+  }
 }
 async function submitChatMessage(event){
   event.preventDefault();
   if(chatBusy)return;
   const input=document.getElementById('chat-input');
   const content=input?.value.trim();
-  if(!content)return;
-  if(content.length>950)return;
+  if(!content||content.length>950)return;
   const history=getRecentChatHistory();
   const generation=++chatGeneration;
   const controller=new AbortController();chatController=controller;chatBusy=true;
@@ -337,40 +441,22 @@ async function submitChatMessage(event){
   setChatWaiting(true);showChatTyping();
   let timeout;
   try{
-    timeout=setTimeout(()=>controller.abort(),26000);
-    const response=await fetch('/api/workflows/ai-legal-assistant',{
-      method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({question:content,history,stream:true}),
-      credentials:'same-origin',cache:'no-store',signal:controller.signal
-    });
-    if(response.ok&&response.headers.get('content-type')?.includes('text/event-stream')){
-      let reply=null,bubble=null;
-      await consumeAiStream(response,(value)=>{
-        if(generation!==chatGeneration)return;
-        document.getElementById('chat-typing')?.remove();
-        if(!reply){
-          reply={role:'assistant',content:value,at:Date.now(),preview:true,sources:[]};
-          chatMessages.push(reply);addChatBubble(reply);
-          bubble=document.querySelector('#chat-feed .chat-row:last-child .chat-bubble');
-        }else reply.content=value;
-        if(bubble)bubble.textContent=value;
-        chatScrollToEnd();
-      });
-    }else{
-      const data=await response.json();
-      if(generation!==chatGeneration)return;
-      document.getElementById('chat-typing')?.remove();
-      const answer=String(data.answer||data.message||'দুঃখিত, এখন উত্তর দেওয়া যাচ্ছে না।');
-      const reply={role:data.ok?'assistant':'error',content:answer,at:Date.now(),preview:data.mode==='preview_ai',sources:data.ok?data.sources:[]};
-      chatMessages.push(reply);addChatBubble(reply);
-    }
+    // Two bounded streaming generations can run only if the first is incomplete.
+    timeout=setTimeout(()=>controller.abort(),55000);
+    await runChatReply(content,history,null,controller,generation);
   }catch(error){
     if(generation!==chatGeneration)return;
     document.getElementById('chat-typing')?.remove();
-    const reply={role:'error',content:'সংযোগে সমস্যা হয়েছে। আবার মেসেজ পাঠিয়ে চেষ্টা করুন।',at:Date.now()};
-    chatMessages.push(reply);addChatBubble(reply);
+    const partial=chatMessages.at(-1);
+    if(partial?.role==='assistant'){
+      partial.incomplete=true;showChatContinue(partial);
+    }else{
+      const reply={role:'error',content:'সংযোগে সমস্যা হয়েছে। আবার চেষ্টা করুন।',at:Date.now()};
+      chatMessages.push(reply);addChatBubble(reply);
+    }
   }finally{
     clearTimeout(timeout);
+    document.getElementById('chat-typing')?.remove();
     if(generation===chatGeneration){chatBusy=false;chatController=null;setChatWaiting(false);document.getElementById('chat-input')?.focus();}
   }
 }

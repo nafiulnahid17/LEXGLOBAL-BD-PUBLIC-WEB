@@ -85,3 +85,18 @@ The `/public/ai-legal-assistant` route now uses a WhatsApp/Messenger-style conve
 ### Verification for v5
 
 `npm test`: **34/34** local Node tests passed (including multilingual hinting, Banglish relational disambiguation in prompts, SSE endpoint and JSON fallback). Browser smoke test: **10/10** Playwright checks passed using synthetic SSE AI chunks. Both are mocked tests, not live Workers AI benchmarks.
+
+## v5.1 — Conversation continuity and incomplete-answer recovery
+
+The AI Legal Assistant keeps the same Messenger-style interface while improving long Bangla replies and follow-ups:
+
+- Native Workers AI model output budget increases to **1,400 tokens** for an initial chat answer. The model is still instructed to be concise; this is a *maximum*, not a mandatory output length.
+- Validated recent chat context now contains up to **six complete user/assistant pairs** (12 messages, up to 1,800 characters each) in **separate model roles** instead of a truncated flattened transcript. No database, cookies or localStorage are used.
+- Short follow-ups such as `bujhi nai` and `বুঝিনি` prompt the assistant to re-explain the **specific prior subject**, rather than asking a generic question when the subject is present in the history.
+- Browser SSE handling watches the `[DONE]` marker and `finish_reason`. If the answer is cut off, it makes **one bounded continuation call** using the same question/history and appends into the *same assistant bubble*. When still incomplete, it offers a **Continue answer** button; incomplete text is not silently treated as finished.
+- The browser never executes model-returned HTML; responses are inserted as plain text. New Chat cancels the request and resets ephemeral conversation state.
+- The Worker remains **binding-only** (`env.AI.run`), without REST credentials or a separate AI engine. Existing 11 Public feature routes are unchanged.
+
+### Verification
+
+`node --test tests/worker.test.mjs` passes **39 tests** including continuation payload validation, long Banglish/Bengali history, and token truncation. Local Playwright UI checks simulated a cutoff (`আপনি ক`), verified seamless completion in the same bubble, history-aware `bujhi nai`, a manual Continue fallback, reset, and mobile layout. The model was **mocked** for these checks. A live Cloudflare deployment and real inference quality have not been verified in this environment; token-budget exhaustion, network failures or model errors can still interrupt results.

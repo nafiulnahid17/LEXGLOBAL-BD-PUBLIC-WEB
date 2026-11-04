@@ -1,18 +1,21 @@
-# LexGlobal BD Public — QA Notes (v5: multilingual + streaming)
+# LexGlobal BD Public — QA Notes (v5.1)
 
-**Local automated API tests:** 34 passed, 0 failed (`npm test`).
-**Local Playwright browser checks:** 10 passed, 0 failed (SSE stream presentation, typing animation, user/assistant bubbles, Banglish conversation context, grounded JSON fallback, New Chat, XSS-safe textContent, another feature route, mobile layout).
-**Syntax:** `node --check worker/index.js`, `node --check site/app.js` passed.
+**Local API tests:** 39 passed, 0 failed (`node --test tests/worker.test.mjs`).
+**Syntax:** `node --check worker/index.js` and `node --check site/app.js` passed.
+**Browser simulation:** Playwright/Chromium successfully tested multi-turn Banglish follow-up, AI cutoff followed by one automatic continuation, same assistant bubble after completion, partial-answer manual Continue fallback, New Chat reset, 390px mobile viewport, 11 visible Public feature navigation links, and no unexpected JavaScript page errors. Responses were mocked; tests do not prove live model fidelity.
 
-## New behavior
-- Same-language instruction selected from the *latest* message without a second inference call.
-- Bengali Unicode -> Bangla; high-confidence romanized Bengali -> Bangla script; other languages -> multilingual model recognition; explicit language requests respected.
-- Banglish examples disambiguate `bou` (wife/spouse) vs `ma` (mother). Uncertain relationship wording should trigger clarification.
-- Preview chat streams SSE from the native Cloudflare Workers AI binding; existing JSON response mode remains supported.
-- Shorter output budget for AI Assistant chat; not a measured Cloudflare latency claim.
-- Normal safety rules remain: no fake citations or government integration, no private file upload, sensitive legal claims need verification.
+## Fixes
 
-## Still unverified
-- Live Cloudflare model multilingual consistency, first-token latency and speed relative to v4.
-- Actual production deployment, Cloudflare quota, and edge performance; production must be re-deployed from GitHub.
-- Model accuracy for all dialects and languages is not guaranteed. Preview mode answers are not verified legal advice.
+- Increased AI Legal Assistant output cap from 480 to 1,400 tokens in the initial turn; continuation capped at 750 tokens.
+- Six complete user/assistant turn pairs may be carried as separate model messages, at most 1,800 characters per prior message, bounded by request validation.
+- Common requests to explain previous content again, including `bujhi nai`, are interpreted in context.
+- Streaming completion distinguishes `[DONE]`, `finish_reason`, abrupt cutoffs and transport interruptions.
+- At most one automatic continuation is attempted for incomplete streams. If that still fails or is incomplete, a manual Continue button is shown. Incomplete responses are not hidden.
+- Existing legal preview warning and native Cloudflare `AI` binding are retained; no REST token fallback or persistent chat data introduced.
+
+## Limits and still unverified
+
+- **Cloudflare production deployment and live Qwen inference** (including actual cutoff telemetry, response quality, latency and quotas) have not been verified here.
+- Automatic continuation incurs another inference call when required, so worst-case latency/cost can increase.
+- SSE completion metadata may vary by model, so punctuation-based fallback is heuristic; no design can guarantee every AI answer is complete or correct.
+- AI legal answers are experimental and must be checked against verified official sources or by a qualified lawyer.

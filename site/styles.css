@@ -377,3 +377,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
  .feature-hero--chat .feature-hero-copy {padding:0 18px 17px;}
  .feature-hero--chat h1 {font-size:25px;}
 }
+
+/* Incomplete stream is never silently presented as a finished answer. */
+.chat-continue {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;padding:7px 10px;border:1px solid rgba(243,196,109,.42);border-radius:12px;background:rgba(27,42,58,.9);color:#f9d7a2;font-size:11px;}
+.chat-continue button {background:#f1c777;color:#0b2036;border:0;border-radius:9px;padding:7px 11px;cursor:pointer;font-size:11px;font-weight:700;}
+.chat-continue button:hover,.chat-continue button:focus-visible {background:#ffe0a3;}
