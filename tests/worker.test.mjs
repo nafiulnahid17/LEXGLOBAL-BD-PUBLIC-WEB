@@ -222,3 +222,95 @@ test('chat remains stateless without server storage or API keys',async()=>{
   assert.match(source,/env\.AI\.run\(model, payload\)/);
   assert.doesNotMatch(source,/localStorage|api\.cloudflare\.com\/client\/v4|Bearer /);
 });
+
+test('language hint identifies Bangla script and common Banglish without extra model calls',async()=>{
+  const {detectResponseLanguage}=await import('../worker/index.js');
+  assert.equal(detectResponseLanguage('amar bou palai gese onno cheler sathe'),'bn-Latn');
+  assert.equal(detectResponseLanguage('hi kemon acho'),'bn-Latn');
+  assert.equal(detectResponseLanguage('আমার স্ত্রী কোথায় যাবে?'),'bn');
+  assert.equal(detectResponseLanguage('hi'),'auto');
+  assert.equal(detectResponseLanguage('How are you doing?'),'auto');
+  assert.equal(detectResponseLanguage('Hola, necesito ayuda legal'),'auto');
+  assert.equal(detectResponseLanguage('मुझे कानूनी मदद चाहिए'),'auto');
+  assert.equal(detectResponseLanguage('أريد المساعدة القانونية'),'auto');
+});
+
+test('Banglish colloquial relation is disambiguated in trusted language rule, output in Bangla',async()=>{
+  let system='',user='',calls=0;
+  const binding={run:async(_model,payload)=>{
+    calls++;system=payload.messages[0].content;user=payload.messages.at(-1).content;
+    return {response:'আপনি বলছেন আপনার স্ত্রী অন্য কারও সঙ্গে চলে গেছেন। আপনি কীভাবে সাহায্য চান?'};
+  }};
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'amar bou palai gese onno cheler sathe'}),env({LEGAL_SEARCH_INSTANCE:'',AI_SEARCH:undefined,AI:binding}));
+  assert.equal(r.status,200);assert.equal(calls,1);
+  assert.match(system,/Banglish/);assert.match(system,/wife\/spouse, not mother/);
+  assert.match(system,/Bangla script/);assert.match(user,/amar bou palai gese/);
+  assert.match(r.json.answer,/স্ত্রী/);
+});
+
+test('English prompt in a Bengali conversation follows latest message, not history',async()=>{
+  let system='';let tokens=0;
+  const binding={run:async(_model,payload)=>{
+    system=payload.messages[0].content;tokens=payload.max_tokens;
+    return {response:'Of course. Tell me how I can help.'};
+  }};
+  const r=await call(req('/api/workflows/ai-legal-assistant',{
+    question:'Can you answer this in English?',
+    history:[{role:'user',content:'আমাকে সাহায্য করুন'},{role:'assistant',content:'নিশ্চয়ই'}]
+  }),env({LEGAL_SEARCH_INSTANCE:'',AI_SEARCH:undefined,AI:binding}));
+  assert.equal(r.status,200);assert.match(system,/English input -> English only/);
+  assert.match(system,/LATEST user message/);assert.equal(tokens,480);
+  assert.equal(r.json.answer,'Of course. Tell me how I can help.');
+});
+
+test('Bengali script, French, Hindi and Arabic rules apply in grounded and preview modes',async()=>{
+  const systemPrompts=[];
+  const binding={run:async(_model,payload)=>{
+    systemPrompts.push(payload.messages[0].content);
+    return {response:'একটি পরীক্ষামূলক সংক্ষিপ্ত উত্তর দেওয়া হচ্ছে।'};
+  }};
+  const e=env({AI:binding,AI_SEARCH:undefined,LEGAL_SEARCH_INSTANCE:''});
+  for(const question of ['আমার জমির বিষয়ে জানতে চাই','Bonjour, je souhaite une aide juridique','मुझे कानूनी मदद चाहिए','أريد المساعدة القانونية']){
+    assert.equal((await call(req('/api/workflows/ai-legal-assistant',{question}),e)).status,200);
+  }
+  assert.match(systemPrompts[0],/Detected: Bengali script/);
+  for(const p of systemPrompts.slice(1))assert.match(p,/French, Spanish and other inputs|other inputs -> that language/);
+  assert.equal(systemPrompts.length,4);
+});
+
+test('streaming preview AI passes native SSE stream through Worker without API tokens',async()=>{
+  let called=0;
+  const binding={run:async(model,payload)=>{
+    called++;assert.match(model,/qwen3-30b-a3b-fp8/);assert.equal(payload.stream,true);
+    const encoder=new TextEncoder();
+    return new ReadableStream({start(controller){
+      controller.enqueue(encoder.encode('data: {"response":"Hello"}\n\n'));
+      controller.enqueue(encoder.encode('data: {"response":" there!"}\n\n'));
+      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+      controller.close();
+    }});
+  }};
+  const response=await api.fetch(req('/api/workflows/ai-legal-assistant',{question:'hello',stream:true}),env({LEGAL_SEARCH_INSTANCE:'',AI_SEARCH:undefined,AI:binding}));
+  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/text\/event-stream/);
+  assert.match(response.headers.get('cache-control'),/no-store/);
+  const text=await response.text();assert.match(text,/Hello/);assert.match(text,/there!/);
+  assert.equal(called,1);
+});
+
+test('grounded AI continues validating citations and returns JSON when stream requested',async()=>{
+  let streamParam;
+  const binding={run:async(_model,payload)=>{
+    streamParam=payload.stream;
+    return {response:'যাচাইকৃত উৎস [1] অনুযায়ী সাধারণ তথ্য দেওয়া হলো।'};
+  }};
+  const e=env({AI:binding});
+  const response=await api.fetch(req('/api/workflows/ai-legal-assistant',{question:'আইন কি?',stream:true}),e);
+  assert.equal(response.status,200);assert.equal(streamParam,false);
+  assert.match(response.headers.get('content-type'),/application\/json/);
+  const result=await response.json();assert.equal(result.mode,'grounded_ai');
+});
+
+test('invalid stream option is rejected before model invocation',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'hi',stream:'true'}));
+  assert.equal(r.status,400);assert.equal(r.json.code,'INVALID_INPUT');
+});

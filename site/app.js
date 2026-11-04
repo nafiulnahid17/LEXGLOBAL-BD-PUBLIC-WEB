@@ -282,6 +282,43 @@ function initChatControls(){
   }));
   chatScrollToEnd();
 }
+// Read the native Workers AI SSE response as it arrives. Keep all model text in textContent.
+// Some Cloudflare models emit delta "response" tokens; others emit choices[].delta.content.
+async function consumeAiStream(response,onUpdate){
+  if(!response.body)throw new Error('STREAM_UNAVAILABLE');
+  const reader=response.body.getReader(),decoder=new TextDecoder();
+  let buffer='',assembled='',doneSeen=false;
+  const apply=(block)=>{
+    const data=block.split(/\r?\n/).filter(line=>line.startsWith('data:')).map(line=>line.slice(5).trimStart()).join('\n').trim();
+    if(!data)return;
+    if(data==='[DONE]'){doneSeen=true;return;}
+    let value;
+    try {value=JSON.parse(data);}catch{return;}
+    const delta=value.response??value.choices?.[0]?.delta?.content??value.choices?.[0]?.message?.content??'';
+    if(typeof delta!=='string'||!delta)return;
+    assembled=delta.startsWith(assembled)?delta:assembled+delta;
+    if(assembled.length>6500)throw new Error('STREAM_LIMIT');
+    // Never show internal Qwen reasoning blocks or unsupported numbered citations in preview mode.
+    const visible=assembled.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/<think>[\s\S]*$/gi,'').replace(/\[(?:\d{1,3})\]/g,'').trimStart();
+    if(visible)onUpdate(visible);
+  };
+  try{
+    while(!doneSeen){
+      const {done,value}=await reader.read();
+      if(done)break;
+      buffer+=decoder.decode(value,{stream:true}).replace(/\r\n/g,'\n');
+      let end;
+      while((end=buffer.indexOf('\n\n'))!==-1){
+        const block=buffer.slice(0,end);buffer=buffer.slice(end+2);apply(block);
+      }
+      if(buffer.length>16000)throw new Error('STREAM_LIMIT');
+    }
+    if(buffer.trim())apply(buffer);
+  }finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+  const final=assembled.replace(/<think>[\s\S]*?<\/think>/gi,'').replace(/<think>[\s\S]*$/gi,'').replace(/\[(?:\d{1,3})\]/g,'').trim();
+  if(!final)throw new Error('EMPTY_AI_STREAM');
+  onUpdate(final);return final;
+}
 async function submitChatMessage(event){
   event.preventDefault();
   if(chatBusy)return;
@@ -303,15 +340,30 @@ async function submitChatMessage(event){
     timeout=setTimeout(()=>controller.abort(),26000);
     const response=await fetch('/api/workflows/ai-legal-assistant',{
       method:'POST',headers:{'content-type':'application/json'},
-      body:JSON.stringify({question:content,history}),
+      body:JSON.stringify({question:content,history,stream:true}),
       credentials:'same-origin',cache:'no-store',signal:controller.signal
     });
-    const data=await response.json();
-    if(generation!==chatGeneration)return;
-    document.getElementById('chat-typing')?.remove();
-    const answer=String(data.answer||data.message||'দুঃখিত, এখন উত্তর দেওয়া যাচ্ছে না।');
-    const reply={role:data.ok?'assistant':'error',content:answer,at:Date.now(),preview:data.mode==='preview_ai',sources:data.ok?data.sources:[]};
-    chatMessages.push(reply);addChatBubble(reply);
+    if(response.ok&&response.headers.get('content-type')?.includes('text/event-stream')){
+      let reply=null,bubble=null;
+      await consumeAiStream(response,(value)=>{
+        if(generation!==chatGeneration)return;
+        document.getElementById('chat-typing')?.remove();
+        if(!reply){
+          reply={role:'assistant',content:value,at:Date.now(),preview:true,sources:[]};
+          chatMessages.push(reply);addChatBubble(reply);
+          bubble=document.querySelector('#chat-feed .chat-row:last-child .chat-bubble');
+        }else reply.content=value;
+        if(bubble)bubble.textContent=value;
+        chatScrollToEnd();
+      });
+    }else{
+      const data=await response.json();
+      if(generation!==chatGeneration)return;
+      document.getElementById('chat-typing')?.remove();
+      const answer=String(data.answer||data.message||'দুঃখিত, এখন উত্তর দেওয়া যাচ্ছে না।');
+      const reply={role:data.ok?'assistant':'error',content:answer,at:Date.now(),preview:data.mode==='preview_ai',sources:data.ok?data.sources:[]};
+      chatMessages.push(reply);addChatBubble(reply);
+    }
   }catch(error){
     if(generation!==chatGeneration)return;
     document.getElementById('chat-typing')?.remove();

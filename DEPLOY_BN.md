@@ -24,3 +24,15 @@ AI-এর অনিরীক্ষিত আউটপুটকে আদাল�
 ## ভবিষ্যতে
 
 Verified legal documents index এবং প্রয়োজনীয় official government service API সংযুক্ত হলে আলাদা production upgrade করা যাবে। Preview Mode এখন engine ছাড়াই শুধু Cloudflare `env.AI.run()` দিয়ে AI response তৈরি করে।
+
+
+## v5 — Chat Streaming & Language
+
+GitHub থেকে নতুন commit deploy করুন। Native `AI` binding অপরিবর্তিত; API Token/REST দরকার নেই।
+
+- Chat UI এখন `stream:true` পাঠায়। Preview mode-এ Workers AI SSE stream দিয়ে chat bubble আপডেট করে।
+- অন্য API client-রা `stream` বাদ দিলে আগের মতো JSON পাবে। Verified-source mode citation যাচাইয়ের জন্য JSON-ই রাখে।
+- ইংরেজি প্রশ্নে ইংরেজি, বাংলা প্রশ্নে বাংলা এবং সাধারণ Banglish-এ বাংলা script-এ উত্তর দেওয়ার instruction যোগ হয়েছে।
+- Live পরীক্ষা: `hi`, `kemon acho`, `amar bou palai gese onno cheler sathe`, `Can you help me?`, `Hola, necesito ayuda`, `मुझे मदद चाहिए`, `أريد المساعدة`। Model অপ্রাসঙ্গিক ভাষা বা ভুল সম্পর্ক ধরে নিলে issue report করুন।
+
+`npm test` ও `npx wrangler deploy` রান করুন। AI-এর response speed বাস্তবে network ও model load-এর উপর নির্ভর করে।

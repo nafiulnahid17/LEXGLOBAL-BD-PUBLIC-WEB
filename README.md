@@ -70,3 +70,18 @@ The `/public/ai-legal-assistant` route now uses a WhatsApp/Messenger-style conve
 **Safety and limitations:** Answers remain AI Preview unless verified official legal sources are available. Do not enter sensitive client or identity data. The typing dots are a waiting animation, **not streaming tokens**. The demo does not guarantee factual correctness or long-term memory. The other ten Public feature workflows and no-login design remain unchanged.
 
 **Verification:** `npm test` passes 27 unit/API checks. Local Chromium/Playwright checks covered two-turn conversation history, message order, animated typing, New Chat, keyboard shortcuts, text-only sanitization, another feature's form and 390px mobile responsiveness. This is local mocked AI testing; actual Cloudflare Workers live inference and deployment are separate.
+
+
+## v5: Same-language replies + lower perceived latency
+
+- The **latest** user message controls the reply language. The Worker adds a trusted language instruction to the same Workers AI call; it does **not** run a separate language-detection model.
+- Bengali script inputs are answered in Bengali; common Latin-script Bengali (Banglish) is recognized and the response is requested in **Bangla script**. Example: `amar bou palai gese onno cheler sathe` refers to the user's **wife**, not mother.
+- Natural English inputs produce English replies. For French, Hindi, Arabic, Spanish and other languages the multilingual model determines the language from the latest message. Explicit requests for a different reply language take priority. Rare or ambiguous language mixes can still be misclassified and require testing.
+- Chat requests now add `stream: true` in JSON. In **preview mode**, `env.AI.run(...,{...,stream:true})` returns Cloudflare Workers AI SSE streamed to the chat bubble as text is generated (time-to-first-text improvement). The UI also accepts regular JSON as before; **source-grounded legal answers remain non-streamed** so the server can validate citations first.
+- Chat replies have a smaller `max_tokens` limit (480 preview / 520 grounded), a concise-answer policy, and low temperature to reduce output generation time while preserving response usefulness. Longer legal drafts retain a larger token budget.
+- No REST fallback, third-party API token, extra cloud engine, database, login or signup was added. Streaming is opt-in and existing POST API clients remain compatible.
+- Streaming improves **perceived** responsiveness. Actual first-token latency, model accuracy and multilingual output must be checked on the live Cloudflare Worker; no fixed speedup or 100% language accuracy is promised.
+
+### Verification for v5
+
+`npm test`: **34/34** local Node tests passed (including multilingual hinting, Banglish relational disambiguation in prompts, SSE endpoint and JSON fallback). Browser smoke test: **10/10** Playwright checks passed using synthetic SSE AI chunks. Both are mocked tests, not live Workers AI benchmarks.
