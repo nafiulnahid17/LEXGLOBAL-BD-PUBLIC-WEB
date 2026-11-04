@@ -195,14 +195,23 @@ function cancelChatPending(){
   if(chatController){chatGeneration++;chatController.abort();chatController=null;}
   chatBusy=false;
 }
+function compactChatTurn(content,maxLength){
+  if(content.length<=maxLength)return content;
+  // Preserve BOTH the original issue and the latest conclusion, rather than dropping
+  // the tail of long Bangla answers. The server caps each turn at 1800 characters.
+  const marker='\\n[… মাঝের অংশ সংক্ষিপ্ত …]\\n';
+  const available=maxLength-marker.length;
+  const head=Math.floor(available*0.53);
+  return content.slice(0,head)+marker+content.slice(-(available-head));
+}
 function getRecentChatHistory(){
   // Keep actual preceding turns, especially the most recent assistant explanation.
   // Budget UTF-8 bytes so Bangla conversation stays within the Worker request limit.
   const completed=[];
   for(let i=0;i<chatMessages.length-1;i++){
     if(chatMessages[i].role==='user' && chatMessages[i+1].role==='assistant'){
-      completed.push({role:'user',content:chatMessages[i].content.slice(0,1100)});
-      completed.push({role:'assistant',content:chatMessages[i+1].content.slice(0,1800)});
+      completed.push({role:'user',content:compactChatTurn(chatMessages[i].content,1100)});
+      completed.push({role:'assistant',content:compactChatTurn(chatMessages[i+1].content,1800)});
       i++;
     }
   }
@@ -302,7 +311,7 @@ async function consumeAiStream(response,onUpdate){
     let value;
     try {value=JSON.parse(data);}catch{return;}
     if(value?.error)throw new Error('AI_STREAM_ERROR');
-    const status=value.choices?.[0]?.finish_reason??value.finish_reason??value.stop_reason;
+    const status=value.choices?.[0]?.finish_reason??value.finish_reason??value.stop_reason??value.usage?.finish_reason;
     if(typeof status==='string'&&status)finishReason=status;
     const delta=value.response??value.choices?.[0]?.delta?.content??value.choices?.[0]?.message?.content??'';
     if(typeof delta!=='string'||!delta)return;
@@ -331,7 +340,7 @@ async function consumeAiStream(response,onUpdate){
   // When the model does not expose finish_reason, long replies ending without sentence
   // punctuation are treated as possibly cut off. Short greetings need no continuation.
   const abrupt=final.length>90 && !/[.!?।॥…][”"'\])}*]*$/u.test(final);
-  const complete=doneSeen && !['length','max_tokens','token_limit'].includes(finishReason) && !(finishReason===null&&abrupt);
+  const complete=doneSeen && !['length','max_tokens','token_limit'].includes(finishReason) && !abrupt;
   return {text:final,complete,finishReason,doneSeen};
 }
 function joinChatContinuation(before,addition){
