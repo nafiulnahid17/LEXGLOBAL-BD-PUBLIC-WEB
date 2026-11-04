@@ -13,7 +13,7 @@ const call=async(request,e=env())=>{const r=await api.fetch(request,e);return {s
 test('reports all eleven features and runtime status',async()=>{
   const r=await call(new Request(BASE+'/api/features'));assert.equal(r.json.features.length,11);
   assert.deepEqual(FEATURES.length,11);assert.equal(AI_FEATURES.size,3);
-  assert.equal(r.json.features[0].status,'requires_verified_source');
+  assert.equal(r.json.features[0].status,'grounded_with_preview_fallback');
   const health=await call(new Request(BASE+'/api/health'));assert.equal(health.json.legalAnsweringEnabled,true);
   assert.equal(health.json.dataStorageEnabled,false);
 });
@@ -41,29 +41,70 @@ test('AI legal, draft and case analysis all work through shared grounded engine'
   ]){assert.equal((await call(req('/api/workflows/'+slug,body))).status,200);}
 });
 
-test('no verified index -> fail closed and never call AI',async()=>{
-  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({LEGAL_SEARCH_INSTANCE:''}));
-  assert.equal(r.status,503);assert.equal(r.json.code,'LEGAL_SOURCES_NOT_CONFIGURED');
+test('without legal index, native AI still answers in clearly labeled preview mode',async()=>{
+  let calls=0;
+  const mock={run:async(model,payload)=>{
+    calls++;
+    assert.match(payload.messages[0].content,/TEST PREVIEW MODE/);
+    return {response:'আপনার প্রশ্ন পেয়েছি। সাধারণ বিষয় বুঝিয়ে দিতে পারি; আইনের নির্দিষ্ট তথ্য যাচাই করুন।'};
+  }};
+  const e=env({LEGAL_SEARCH_INSTANCE:'',AI_SEARCH:undefined,AI:mock});
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'hi'}),e);
+  assert.equal(r.status,200);assert.equal(r.json.mode,'preview_ai');
+  assert.equal(r.json.verified,false);assert.equal(r.json.sources.length,0);
+  assert.equal(r.json.sourceStatus,'not_configured');assert.equal(calls,1);
+  assert.match(r.json.disclaimer,/পরীক্ষামূলক/);
+  const health=await call(new Request(BASE+'/api/health'),e);
+  assert.equal(health.json.legalAnsweringEnabled,true);
+  assert.equal(health.json.answerMode,'preview_ai');
+  const f=await call(new Request(BASE+'/api/features'),e);
+  assert.equal(f.json.features[0].status,'preview_ai_available');
 });
 
-test('rejected sources cannot be used by AI',async()=>{
-  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI_SEARCH:{get:()=>({search:async()=>({chunks:[{...sampleSource,item:{key:'https://bad.example/article'}}]})})}}));
-  assert.equal(r.status,422);assert.equal(r.json.code,'VERIFIED_SOURCE_NOT_FOUND');
+test('rejected untrusted URL falls back to preview and is never cited',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন কী?'}),env({AI_SEARCH:{get:()=>({search:async()=>({chunks:[{...sampleSource,item:{key:'https://bad.example/article'}}]})})}}));
+  assert.equal(r.status,200);assert.equal(r.json.mode,'preview_ai');assert.equal(r.json.sources.length,0);
+  assert.doesNotMatch(r.json.answer,/\[1\]/);
 });
 
-test('rejected low-confidence source cannot be used by AI',async()=>{
-  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI_SEARCH:{get:()=>({search:async()=>({chunks:[{...sampleSource,score:0.10}]})})}}));
-  assert.equal(r.status,422);assert.equal(r.json.code,'VERIFIED_SOURCE_NOT_FOUND');
+test('low confidence source falls back to safe preview mode',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন কী?'}),env({AI_SEARCH:{get:()=>({search:async()=>({chunks:[{...sampleSource,score:0.10}]})})}}));
+  assert.equal(r.status,200);assert.equal(r.json.mode,'preview_ai');assert.equal(r.json.verified,false);
 });
 
-test('model output without a citation is rejected',async()=>{
-  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI:{run:async()=>({response:'আইন সম্পর্কে একটি আংশিক অথচ উৎসবিহীন উত্তর।'})}}));
-  assert.equal(r.status,422);assert.equal(r.json.code,'UNVERIFIED_ANSWER');
+test('missing citations are not falsely labeled verified',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন কী?'}),env({AI:{run:async()=>({response:'আইন সম্পর্কে একটি আংশিক অথচ উৎসবিহীন উত্তর।'})}}));
+  assert.equal(r.status,200);assert.equal(r.json.mode,'preview_ai');assert.equal(r.json.verified,false);
+  assert.equal(r.json.sources.length,0);assert.equal(r.json.sourceStatus,'model_citations_unverified');
 });
 
-test('model output inventing citation reference is rejected',async()=>{
-  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'কোন সাধারণ আইন প্রযোজ্য?'}),env({AI:{run:async()=>({response:'সূত্র [22] থেকে এই দাবির প্রমাণ পাওয়া যায়, কিন্তু এটি সঠিক নয়।'})}}));
-  assert.equal(r.status,422);assert.equal(r.json.code,'UNVERIFIED_ANSWER');
+test('fabricated citation markers are removed when source verification fails',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন কী?'}),env({AI:{run:async()=>({response:'সূত্র [22] থেকে এই দাবির প্রমাণ পাওয়া যায়, কিন্তু এটি সঠিক নয়।'})}}));
+  assert.equal(r.status,200);assert.equal(r.json.mode,'preview_ai');assert.doesNotMatch(r.json.answer,/\[22\]/);
+  assert.equal(r.json.verified,false);
+});
+
+test('retrieval outage degrades to preview AI rather than a hard block',async()=>{
+  const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন কী?'}),env({AI_SEARCH:{get:()=>({search:async()=>{throw Error('retrieval temporarily unavailable')}})}}));
+  assert.equal(r.status,200);assert.equal(r.json.sourceStatus,'lookup_unavailable');
+  assert.equal(r.json.mode,'preview_ai');
+});
+
+test('all three AI forms work without legal index and use native AI binding',async()=>{
+  let count=0;
+  const e=env({LEGAL_SEARCH_INSTANCE:'',AI_SEARCH:undefined,AI:{run:async(_model,payload)=>{
+    count++;assert.match(payload.messages[0].content,/TEST PREVIEW MODE/);
+    return {response:'এটি সাধারণ একটি নমুনা উত্তর, আইনি তথ্য আলাদাভাবে যাচাই করুন।'};
+  }}});
+  for(const [slug,body] of [
+    ['ai-legal-assistant',{question:'hi'}],
+    ['instant-legal-draft',{document:'আইনি নোটিশ',purpose:'নমুনা নোটিশ'}],
+    ['ai-case-analysis',{facts:'একটি কাল্পনিক মামলার ঘটনা'}]
+  ]){
+    const r=await call(req('/api/workflows/'+slug,body),e);
+    assert.equal(r.status,200,slug);assert.equal(r.json.mode,'preview_ai');
+  }
+  assert.equal(count,3);
 });
 
 test('AI upstream error returns safe message',async()=>{

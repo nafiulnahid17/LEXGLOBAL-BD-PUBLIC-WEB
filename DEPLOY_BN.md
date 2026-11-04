@@ -1,43 +1,26 @@
-# LexGlobal BD Public — Cloudflare Workers AI Binding Only
+# LexGlobal BD — Public AI Testing (Cloudflare Binding Only)
 
-## কী পরিবর্তন হলো
+## এখনই ব্যবহার করার পদ্ধতি
 
-- `wrangler.jsonc` ফাইলে `ai: { binding: "AI" }` আছে।
-- `worker/index.js`-এ AI inference-এর **একমাত্র** পদ্ধতি `env.AI.run(model, payload)`।
-- REST API, account ID, bearer-token inference, manual AI key এবং AI Gateway forwarding নেই।
-- Binding অনুপস্থিত হলে backend `AI_BINDING_NOT_CONFIGURED` দেখায়; অনুমান করে উত্তর দেয় না।
-
-## GitHub থেকে Cloudflare-এ deploy
-
-Cloudflare account-এ Workers AI ও Workers ব্যবহার করার অনুমতি থাকতে হবে। Node.js 20+ এবং Wrangler 4.68.1+ ব্যবহার করুন।
+`main` ব্রাঞ্চে আপডেটের পর Cloudflare Workers-এ redeploy করুন (Git auto-deploy থাকলে deploy trigger হবে)। AI-এর জন্য আলাদা API token, REST URL, external engine বা AI Search instance লাগবে না। `wrangler.jsonc`-তে `ai.binding` = `AI` থাকতে হবে।
 
 ```bash
 npm install
 npm test
-npx wrangler login
 npx wrangler deploy
 ```
 
-`wrangler login` শুধু deploy করার জন্য Cloudflare CLI authentication; AI inference-এর জন্য কোনো API token লাগবে না।
+## Deploy-এর পর যাচাই
 
-## আইনগত তথ্যের AI Search binding
+1. `https://<your-worker>/api/health` খুলে `aiBindingConfigured: true` এবং `legalAnsweringEnabled: true` দেখুন। `answerMode: preview_ai` থাকলে source index ছাড়া AI ব্যবহারযোগ্য।
+2. `/public/ai-legal-assistant`-এ `hi` লিখে Submit করুন। Network-এ POST `/api/workflows/ai-legal-assistant` → HTTP 200; JSON-এ `mode: preview_ai`, `answer` ও `verified: false` দেখাবে।
+3. `Instant Legal Draft` ও `AI Case Analysis`-এর নমুনা ফর্মও চেক করুন।
+4. অন্য ৮টি সেবার পেজে প্রয়োজনীয় নির্দেশনা ও সরকারি link দেখা যাবে; কোনো বাস্তব সরকারি আবেদন সম্পন্ন হবে না। SOS gesture এখন বাস্তবে কাজ করে না।
 
-1. Cloudflare Dashboard-এ AI Search instance তৈরি করুন। এতে সর্বশেষ সরকারি `*.gov.bd` মূল আইনের নির্ভরযোগ্য ডকুমেন্ট index করুন; `source_url` metadata-তে আসল HTTPS সরকারি URL রাখুন।
-2. `wrangler.jsonc`-এর `vars.LEGAL_SEARCH_INSTANCE`-এ instance-এর **name/ID** বসান। `AI_SEARCH` namespace binding ইতিমধ্যে কনফিগার করা।
-3. `npx wrangler deploy` দিয়ে Worker প্রকাশ করুন।
-4. `GET /api/health`-এ `aiProvider: "cloudflare_workers_ai_binding"`, `aiBindingConfigured: true` এবং `legalSourceIndexConfigured: true` দেখুন। এগুলো কেবল configuration readiness; **যাচাইকৃত source content, output accuracy বা model latency প্রমাণ করে না**।
-5. নিরাপদ test questions দিয়ে AI Assistant, Draft এবং Case Analysis চালিয়ে আসল আইন ও citations আলাদাভাবে যাচাই করুন।
+## জরুরি সতর্কতা
 
-**আইনি index না থাকলে AI output ইচ্ছাকৃতভাবে বন্ধ থাকবে** (`LEGAL_SOURCES_NOT_CONFIGURED`)। কোনো real legal documents, NID, passport, ব্যক্তিগত মামলা বা গোপন তথ্য privacy review ছাড়া পাঠাবেন না।
+AI-এর অনিরীক্ষিত আউটপুটকে আদালতে ব্যবহারযোগ্য বা নির্ভুল তথ্য হিসেবে দেখাবেন না। এই Preview Mode-এ আইন, ধারা বা মামলা সংক্রান্ত তথ্য মূল উৎস ও আইনজীবীর মাধ্যমে যাচাই করতে হবে। সাইটের নিজস্ব database নেই, কিন্তু AI provider-এ সাধারণ প্রশ্ন পাঠানো হয়; গোপন তথ্য দেবেন না।
 
-## UI/API এবং সীমাবদ্ধতা
+## ভবিষ্যতে
 
-- `site/` এ আগের Premium Navy+Gold ১১টি Public UI page অক্ষত আছে; login/signup নেই।
-- সরকারি গাইডের ৮টি route দ্রুত curated official links দেয়; সরকারি API-তে আবেদন জমা দেয় না।
-- AI response-এর citation যাচাই এবং rate limit আছে, কিন্তু আইনি ভুল ১০০% ঠেকানোর গ্যারান্টি নেই।
-- Emergency SOS Gesture সত্যিকারের জরুরি বার্তা/লোকেশন পাঠায় না।
-- Live deployment এবং বাস্তব Cloudflare Workers AI result এই প্যাকেজ থেকে verify করা হয়নি।
-
-Cloudflare official docs:
-- https://developers.cloudflare.com/workers-ai/configuration/bindings/
-- https://developers.cloudflare.com/ai-search/api/migration/workers-binding/
+Verified legal documents index এবং প্রয়োজনীয় official government service API সংযুক্ত হলে আলাদা production upgrade করা যাবে। Preview Mode এখন engine ছাড়াই শুধু Cloudflare `env.AI.run()` দিয়ে AI response তৈরি করে।

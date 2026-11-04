@@ -14,12 +14,6 @@
   "ai": {
     "binding": "AI"
   },
-  "ai_search_namespaces": [
-    {
-      "binding": "AI_SEARCH",
-      "namespace": "default"
-    }
-  ],
   "ratelimits": [
     {
       "name": "PUBLIC_AI_RATE",

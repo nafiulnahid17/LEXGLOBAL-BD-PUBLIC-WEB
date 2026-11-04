@@ -1,13 +1,14 @@
 {
   "name": "lexglobalbd-public-cloudflare-foundation",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "python3 scripts/dev_server.py",
     "deploy": "wrangler deploy",
     "cf:dev": "wrangler dev",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --test tests/*.test.mjs",
+    "preview:mock": "node scripts/preview_mock_ai_server.mjs"
   },
   "devDependencies": {
     "wrangler": "^4.68.1"

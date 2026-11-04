@@ -84,11 +84,11 @@ function contacts(f){const women=f.slug==='narisafe';const details=(no,label,sub
  return `<div class="safety-contacts"><div class="alert-soft">${icon('alert',20)}<div><strong>জরুরি পরিস্থিতিতে অপেক্ষা করবেন না</strong><p>এই ওয়েবসাইট কোনো জরুরি কল সেন্টার নয়। কল করতে নিচের নম্বর ব্যবহার করুন।</p></div></div><div class="contact-cards">${details('999','জাতীয় জরুরি সেবা','পুলিশ · ফায়ার · অ্যাম্বুলেন্স',true)}${details('16699','সরকারি আইনি সহায়তা','National Legal Aid')}${women?details('109','নারী ও শিশু সহায়তা','সহিংসতা প্রতিরোধ হেল্পলাইন'):''}</div>
  ${f.slug==='emergency-sos-gesture'?`<div class="gesture-message">${icon('lock',20)}<span>Gesture-based SOS এখন সক্রিয় নয়। ফোনের permission, service integration ও নিরাপত্তা যাচাইয়ের পর এটি যোগ করা যাবে।</span></div>`:''}
  <p class="source-line">সূত্র: <a target="_blank" rel="noopener noreferrer" href="https://bangladesh.gov.bd/">Bangladesh National Portal ${icon('external',13)}</a> · <a target="_blank" rel="noopener noreferrer" href="https://nlaso.gov.bd/">National Legal Aid ${icon('external',13)}</a></p></div>`;}
-function featurePage(f){const safety=f.group==='safety';return `<div class="page-back"><a href="${ROOT}">${icon('left',17)} Back to Public Dashboard</a><span><span class="status-dot"></span> VERIFY ALL LEGAL SOURCES</span></div>
+function featurePage(f){const safety=f.group==='safety';return `<div class="page-back"><a href="${ROOT}">${icon('left',17)} Back to Public Dashboard</a><span><span class="status-dot"></span> PUBLIC TESTING · VERIFY LEGAL DETAILS</span></div>
  <section class="feature-hero"><div class="feature-hero-copy">${badge(`${icon(f.icon,15)} FOR PUBLIC`,safety?'rose':'gold')}<h1>${f.title}</h1><h2>${f.bn}</h2><p>${f.summary}</p><div class="feature-hero-points"><span>${icon('check',14)} সহজ ব্যবহার</span><span>${icon('check',14)} Responsive UI</span></div></div><img src="/previews/${f.slug}.webp" alt="${f.title} design preview" class="feature-hero-preview"/></section>
- <div class="page-section-title"><div><span class="eyebrow">FEATURE WORKSPACE</span><h2>${safety?'Safety & Support':'Service Workspace'}</h2></div><span class="chip-outline">Cloudflare-powered guidance</span></div>
- <div class="detail-grid"><main class="glass-card main-workspace">${safety ? contacts(f):`<div class="panel-heading"><span class="panel-icon">${icon(f.icon,23)}</span><div><h3>${f.title}</h3><p>প্রয়োজনীয় তথ্য নির্বাচন বা লিখুন</p></div></div><div class="privacy-banner">${icon('lock',18)}<span>ব্যক্তিগত মামলা, NID, পাসপোর্ট, মোবাইল নম্বর বা গোপন তথ্য লিখবেন না। AI আইনি উত্তর কেবল যাচাইকৃত উৎস থাকলে দেখানো হবে।</span></div><form class="service-form" id="service-form">${f.fields.map(formField).join('')}<button type="submit" class="btn btn-gold form-action">${icon('sparkle',18)} ${f.action} ${icon('arrow',18)}</button><div role="status" aria-live="polite" class="submission-note" id="submission-message" hidden></div></form>`}</main>
- <aside class="detail-aside"><div class="glass-card steps-card"><div class="panel-heading"><span class="panel-icon small">${icon('book',21)}</span><div><h3>${safety?'সহায়তার পথ':'কীভাবে ব্যবহার করবেন'}</h3><p>Quick guide</p></div></div><div class="steps-list">${(safety?['প্রয়োজনীয় নম্বর নির্বাচন করুন','মোবাইল থেকে কল করুন','দ্রুত সংশ্লিষ্ট কর্তৃপক্ষের সহায়তা নিন']:['প্রয়োজন অনুযায়ী সেবা নির্বাচন করুন','উদাহরণ বা সাধারণ তথ্য লিখুন','লাইভ সেবা চালু হলে এখানে ফলাফল পাবেন']).map((s,i)=>`<div><span>0${i+1}</span><p>${s}</p></div>`).join('')}</div></div>
+ <div class="page-section-title"><div><span class="eyebrow">FEATURE WORKSPACE</span><h2>${safety?'Safety & Support':'Service Workspace'}</h2></div><span class="chip-outline">AI Preview · No Login</span></div>
+ <div class="detail-grid"><main class="glass-card main-workspace">${safety ? contacts(f):`<div class="panel-heading"><span class="panel-icon">${icon(f.icon,23)}</span><div><h3>${f.title}</h3><p>প্রয়োজনীয় তথ্য নির্বাচন বা লিখুন</p></div></div><div class="privacy-banner">${icon('lock',18)}<span>পরীক্ষামূলক AI এখন সাধারণ প্রশ্নের উত্তর দেবে। কোনো ব্যক্তিগত মামলা, NID, পাসপোর্ট বা গোপন তথ্য লিখবেন না। নির্দিষ্ট আইনি তথ্য মূল উৎসে যাচাই করুন।</span></div><form class="service-form" id="service-form">${f.fields.map(formField).join('')}<button type="submit" class="btn btn-gold form-action">${icon('sparkle',18)} ${f.action} ${icon('arrow',18)}</button><div role="status" aria-live="polite" class="submission-note" id="submission-message" hidden></div></form>`}</main>
+ <aside class="detail-aside"><div class="glass-card steps-card"><div class="panel-heading"><span class="panel-icon small">${icon('book',21)}</span><div><h3>${safety?'সহায়তার পথ':'কীভাবে ব্যবহার করবেন'}</h3><p>Quick guide</p></div></div><div class="steps-list">${(safety?['প্রয়োজনীয় নম্বর নির্বাচন করুন','মোবাইল থেকে কল করুন','দ্রুত সংশ্লিষ্ট কর্তৃপক্ষের সহায়তা নিন']:['প্রয়োজন অনুযায়ী সেবা নির্বাচন করুন','উদাহরণ বা সাধারণ তথ্য লিখুন','AI Preview উত্তর দেখুন; আইনি তথ্য নিজে যাচাই করুন']).map((s,i)=>`<div><span>0${i+1}</span><p>${s}</p></div>`).join('')}</div></div>
  <div class="glass-card example-card"><div class="panel-heading"><span class="panel-icon small">${icon('help',21)}</span><div><h3>Popular Topics</h3><p>দ্রুত ধারণা নিন</p></div></div><div class="topic-list">${f.examples.map(s=>`<div>${icon('check',15)}${s}</div>`).join('')}</div></div>
  <a class="aside-action" href="${link('emergency-call')}">${icon('phone',20)}<div><strong>জরুরি যোগাযোগ</strong><p>999 · 16699</p></div>${icon('arrow',18)}</a></aside></div>`;}
 function notFound(){return `<div class="not-found">${icon('file',45)}<h1>পেজটি পাওয়া যায়নি</h1><p>এটি Public foundation-এর বৈধ রুট নয়।</p><a class="btn btn-gold" href="${ROOT}">Public Dashboard ${icon('arrow',17)}</a></div>`;}
@@ -129,7 +129,7 @@ async function handleWorkflowSubmit(event) {
   }
   button.disabled=true;
   const old=button.innerHTML;
-  button.textContent='যাচাই করা হচ্ছে…';
+  button.textContent='AI উত্তর তৈরি হচ্ছে…';
   let timeout;
   try {
     const controller=new AbortController();
@@ -139,7 +139,8 @@ async function handleWorkflowSubmit(event) {
       body:JSON.stringify(values),signal:controller.signal,credentials:'same-origin',cache:'no-store'
     });
     const output=await response.json();
-    writeResult(result,output.ok?(output.title||'যাচাইকৃত ফলাফল'):'এখন ফলাফল দেওয়া যাচ্ছে না',output.answer||output.message||'অনুগ্রহ করে পরে চেষ্টা করুন।',output.sources||[],Boolean(output.ok));
+    const title=output.ok?(output.mode==='preview_ai'?'AI পরীক্ষামূলক উত্তর':output.mode==='grounded_ai'?'উৎসসহ AI উত্তর':output.title||'সেবা নির্দেশনা'):'এখন ফলাফল দেওয়া যাচ্ছে না';
+    writeResult(result,title,output.answer||output.message||'অনুগ্রহ করে পরে চেষ্টা করুন।',output.sources||[],Boolean(output.ok));
     if (output.disclaimer) addText(result,output.disclaimer,'workflow-disclaimer');
   } catch {
     writeResult(result,'সংযোগে সমস্যা হয়েছে','ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',[],false);
