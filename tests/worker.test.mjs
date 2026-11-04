@@ -193,7 +193,8 @@ test('conversation history uses native chat roles and re-explains earlier subjec
   assert.deepEqual(payload.messages.slice(1).map(m=>m.role),['user','assistant','user']);
   assert.match(payload.messages[1].content,/bou palai/);
   assert.match(payload.messages[2].content,/স্ত্রী/);
-  assert.equal(payload.messages.at(-1).content,'bujhi nai');
+  assert.match(payload.messages.at(-1).content,/Latest user message: "bujhi nai"/);
+  assert.match(payload.messages.at(-1).content,/amar bou palai gese onno cheler sathe/);
   assert.match(payload.messages[0].content,/immediately RE-EXPLAIN the previous specific topic/);
   assert.match(payload.messages[0].content,/Banglish/);
   assert.ok(payload.max_tokens>=1200);
