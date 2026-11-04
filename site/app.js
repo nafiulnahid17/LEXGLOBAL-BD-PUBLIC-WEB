@@ -22,6 +22,7 @@ const groups = [
 ];
 const svgPaths = {
   scale:'<path d="M12 3v18M4 7h16M7 7 3 14h8L7 7ZM17 7l-4 7h8l-4-7ZM8 21h8"/>',
+  person:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-6 16-6 16 0"/>',
   home:'<path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/>',
   arrow:'<path d="M4 12h16m-7-7 7 7-7 7"/>',
   left:'<path d="M20 12H4m7-7-7 7 7 7"/>',
@@ -53,6 +54,11 @@ function icon(name, size=19) {return `<svg width="${size}" height="${size}" view
 const brand = (full=false) => `<a href="${ROOT}" class="brand" aria-label="LexGlobal BD Public Dashboard"><span class="brand-emblem">⚖</span><span class="brand-copy"><strong>Lex<span>Global</span> BD</strong>${full ? '<small>AI-POWERED LEGAL ECOSYSTEM</small>':''}</span></a>`;
 const badge = (text, tone='gold') => `<span class="badge badge-${tone}">${text}</span>`;
 let enlarged=false, menuOpen=false;
+// Ephemeral in-tab conversation: no cookies, localStorage or server-side persistence.
+const chatMessages=[];
+let chatBusy=false;
+let chatController=null;
+let chatGeneration=0;
 const app=document.getElementById('app');
 
 function sidebar() {
@@ -84,16 +90,26 @@ function contacts(f){const women=f.slug==='narisafe';const details=(no,label,sub
  return `<div class="safety-contacts"><div class="alert-soft">${icon('alert',20)}<div><strong>জরুরি পরিস্থিতিতে অপেক্ষা করবেন না</strong><p>এই ওয়েবসাইট কোনো জরুরি কল সেন্টার নয়। কল করতে নিচের নম্বর ব্যবহার করুন।</p></div></div><div class="contact-cards">${details('999','জাতীয় জরুরি সেবা','পুলিশ · ফায়ার · অ্যাম্বুলেন্স',true)}${details('16699','সরকারি আইনি সহায়তা','National Legal Aid')}${women?details('109','নারী ও শিশু সহায়তা','সহিংসতা প্রতিরোধ হেল্পলাইন'):''}</div>
  ${f.slug==='emergency-sos-gesture'?`<div class="gesture-message">${icon('lock',20)}<span>Gesture-based SOS এখন সক্রিয় নয়। ফোনের permission, service integration ও নিরাপত্তা যাচাইয়ের পর এটি যোগ করা যাবে।</span></div>`:''}
  <p class="source-line">সূত্র: <a target="_blank" rel="noopener noreferrer" href="https://bangladesh.gov.bd/">Bangladesh National Portal ${icon('external',13)}</a> · <a target="_blank" rel="noopener noreferrer" href="https://nlaso.gov.bd/">National Legal Aid ${icon('external',13)}</a></p></div>`;}
+function chatWorkspace(){return `<section class="chat-shell" aria-label="AI Legal Assistant conversation">
+  <header class="chat-header"><span class="chat-avatar">${icon('bot',24)}</span><span class="chat-assistant-info"><strong>LexGlobal AI Assistant</strong><small><span class="chat-online-dot"></span> Cloudflare AI · Preview mode</small></span><button id="chat-new" class="chat-reset" type="button" title="বর্তমান কথোপকথন মুছে নতুন চ্যাট" aria-label="New conversation">${icon('sparkle',17)} <span>New Chat</span></button></header>
+  <div class="chat-feed" id="chat-feed" role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions text">
+    <div class="chat-intro" id="chat-intro"><span class="chat-intro-icon">${icon('bot',25)}</span><strong>স্বাগতম! 👋</strong><p>আইন সম্পর্কে সাধারণ প্রশ্ন করুন, অথবা স্বাভাবিকভাবে কথা বলুন।</p><small>এই কথোপকথন শুধু বর্তমান ট্যাবে থাকবে।</small></div>
+  </div>
+  <div class="chat-bottom"><div class="chat-suggestions" id="chat-suggestions"><button type="button" data-chat-prompt="হ্যালো, কেমন আছো?">👋 হ্যালো</button><button type="button" data-chat-prompt="ভাড়াটিয়ার অধিকার সম্পর্কে সাধারণ তথ্য দাও">🏠 ভাড়াটিয়ার অধিকার</button><button type="button" data-chat-prompt="আইনি নোটিশ কী?">📄 আইনি নোটিশ</button></div>
+    <form class="chat-composer" id="chat-form" aria-label="Send a message"><label class="visually-hidden" for="chat-input">আপনার মেসেজ</label><textarea id="chat-input" rows="1" maxlength="950" placeholder="এখানে মেসেজ লিখুন..." enterkeyhint="send" aria-label="আপনার মেসেজ"></textarea><button type="submit" id="chat-send" class="chat-send" aria-label="Send message" title="Send (Enter)">${icon('arrow',21)}</button></form>
+    <p class="chat-hint">Enter = Send · Shift + Enter = নতুন লাইন · <span>AI উত্তর যাচাই করুন; ব্যক্তিগত তথ্য লিখবেন না।</span></p>
+  </div>
+</section>`;}
 function featurePage(f){const safety=f.group==='safety';return `<div class="page-back"><a href="${ROOT}">${icon('left',17)} Back to Public Dashboard</a><span><span class="status-dot"></span> PUBLIC TESTING · VERIFY LEGAL DETAILS</span></div>
- <section class="feature-hero"><div class="feature-hero-copy">${badge(`${icon(f.icon,15)} FOR PUBLIC`,safety?'rose':'gold')}<h1>${f.title}</h1><h2>${f.bn}</h2><p>${f.summary}</p><div class="feature-hero-points"><span>${icon('check',14)} সহজ ব্যবহার</span><span>${icon('check',14)} Responsive UI</span></div></div><img src="/previews/${f.slug}.webp" alt="${f.title} design preview" class="feature-hero-preview"/></section>
+ <section class="feature-hero ${f.slug==='ai-legal-assistant'?'feature-hero--chat':''}"><div class="feature-hero-copy">${badge(`${icon(f.icon,15)} FOR PUBLIC`,safety?'rose':'gold')}<h1>${f.title}</h1><h2>${f.bn}</h2><p>${f.summary}</p><div class="feature-hero-points"><span>${icon('check',14)} সহজ ব্যবহার</span><span>${icon('check',14)} Responsive UI</span></div></div><img src="/previews/${f.slug}.webp" alt="${f.title} design preview" class="feature-hero-preview"/></section>
  <div class="page-section-title"><div><span class="eyebrow">FEATURE WORKSPACE</span><h2>${safety?'Safety & Support':'Service Workspace'}</h2></div><span class="chip-outline">AI Preview · No Login</span></div>
- <div class="detail-grid"><main class="glass-card main-workspace">${safety ? contacts(f):`<div class="panel-heading"><span class="panel-icon">${icon(f.icon,23)}</span><div><h3>${f.title}</h3><p>প্রয়োজনীয় তথ্য নির্বাচন বা লিখুন</p></div></div><div class="privacy-banner">${icon('lock',18)}<span>পরীক্ষামূলক AI এখন সাধারণ প্রশ্নের উত্তর দেবে। কোনো ব্যক্তিগত মামলা, NID, পাসপোর্ট বা গোপন তথ্য লিখবেন না। নির্দিষ্ট আইনি তথ্য মূল উৎসে যাচাই করুন।</span></div><form class="service-form" id="service-form">${f.fields.map(formField).join('')}<button type="submit" class="btn btn-gold form-action">${icon('sparkle',18)} ${f.action} ${icon('arrow',18)}</button><div role="status" aria-live="polite" class="submission-note" id="submission-message" hidden></div></form>`}</main>
+ <div class="detail-grid"><main class="glass-card main-workspace">${safety ? contacts(f) : f.slug==='ai-legal-assistant' ? chatWorkspace() : `<div class="panel-heading"><span class="panel-icon">${icon(f.icon,23)}</span><div><h3>${f.title}</h3><p>প্রয়োজনীয় তথ্য নির্বাচন বা লিখুন</p></div></div><div class="privacy-banner">${icon('lock',18)}<span>পরীক্ষামূলক AI এখন সাধারণ প্রশ্নের উত্তর দেবে। কোনো ব্যক্তিগত মামলা, NID, পাসপোর্ট বা গোপন তথ্য লিখবেন না। নির্দিষ্ট আইনি তথ্য মূল উৎসে যাচাই করুন।</span></div><form class="service-form" id="service-form">${f.fields.map(formField).join('')}<button type="submit" class="btn btn-gold form-action">${icon('sparkle',18)} ${f.action} ${icon('arrow',18)}</button><div role="status" aria-live="polite" class="submission-note" id="submission-message" hidden></div></form>`}</main>
  <aside class="detail-aside"><div class="glass-card steps-card"><div class="panel-heading"><span class="panel-icon small">${icon('book',21)}</span><div><h3>${safety?'সহায়তার পথ':'কীভাবে ব্যবহার করবেন'}</h3><p>Quick guide</p></div></div><div class="steps-list">${(safety?['প্রয়োজনীয় নম্বর নির্বাচন করুন','মোবাইল থেকে কল করুন','দ্রুত সংশ্লিষ্ট কর্তৃপক্ষের সহায়তা নিন']:['প্রয়োজন অনুযায়ী সেবা নির্বাচন করুন','উদাহরণ বা সাধারণ তথ্য লিখুন','AI Preview উত্তর দেখুন; আইনি তথ্য নিজে যাচাই করুন']).map((s,i)=>`<div><span>0${i+1}</span><p>${s}</p></div>`).join('')}</div></div>
  <div class="glass-card example-card"><div class="panel-heading"><span class="panel-icon small">${icon('help',21)}</span><div><h3>Popular Topics</h3><p>দ্রুত ধারণা নিন</p></div></div><div class="topic-list">${f.examples.map(s=>`<div>${icon('check',15)}${s}</div>`).join('')}</div></div>
  <a class="aside-action" href="${link('emergency-call')}">${icon('phone',20)}<div><strong>জরুরি যোগাযোগ</strong><p>999 · 16699</p></div>${icon('arrow',18)}</a></aside></div>`;}
 function notFound(){return `<div class="not-found">${icon('file',45)}<h1>পেজটি পাওয়া যায়নি</h1><p>এটি Public foundation-এর বৈধ রুট নয়।</p><a class="btn btn-gold" href="${ROOT}">Public Dashboard ${icon('arrow',17)}</a></div>`;}
 function render(){const f=currentFeature();document.title=f?`${f.title} — LexGlobal BD`:'For Public — LexGlobal BD';app.innerHTML=`<div class="app-shell ${enlarged?'large-text':''}"><a href="#main-content" class="skip-link">সরাসরি মূল অংশে যান</a>${sidebar()}${menuOpen?'<button class="mobile-scrim" type="button" data-close-menu aria-label="মেনু বন্ধ করুন"></button>':''}<div class="content-column">${header()}<div class="content-wrapper" id="main-content">${isHome()?dashboard():f?featurePage(f):notFound()}</div>${footer()}</div></div>`;bindControls();}
-function navigate(href){history.pushState({},'',href);menuOpen=false;render();scrollTo({top:0,behavior:'auto'});}
+function navigate(href){if(href!==location.pathname)cancelChatPending();history.pushState({},'',href);menuOpen=false;render();scrollTo({top:0,behavior:'auto'});}
 function bindControls(){
   document.querySelectorAll('a[href^="/public"]').forEach(a=>a.addEventListener('click',e=>{if(e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;e.preventDefault();navigate(a.getAttribute('href'));}));
   document.querySelector('[data-menu]')?.addEventListener('click',()=>{menuOpen=!menuOpen;render();});
@@ -101,9 +117,10 @@ function bindControls(){
   document.querySelector('[data-size]')?.addEventListener('click',()=>{enlarged=!enlarged;render();});
   const search=document.getElementById('feature-search'); if(search) search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();let visible=0;document.querySelectorAll('.feature-card').forEach(card=>{const shown=card.dataset.search.includes(q);card.hidden=!shown;if(shown)visible++;});document.querySelectorAll('.category').forEach(g=>{const count=g.querySelectorAll('.feature-card:not([hidden])').length;g.hidden=!count;g.querySelector('.group-count').textContent=String(count).padStart(2,'0');});document.getElementById('empty-search').hidden=visible>0;});
   document.getElementById('service-form')?.addEventListener('submit', handleWorkflowSubmit);
+  initChatControls();
   const fileInput=document.querySelector('input[type=file]');if(fileInput)fileInput.addEventListener('change',()=>{const label=document.getElementById('file-label');if(label)label.textContent=fileInput.files?.[0]?.name||'কোনো ফাইল নির্বাচন করা হয়নি';});
 }
-window.addEventListener('popstate',()=>{menuOpen=false;render();});
+window.addEventListener('popstate',()=>{cancelChatPending();menuOpen=false;render();});
 render();
 
 // Never add API tokens or other secrets to site/app.js. Only the backend sees them.
@@ -172,4 +189,136 @@ function writeResult(parent,title,message,sources,success) {
     anchor.textContent=source.title||source.url;item.append(anchor);list.append(item);
   }
   parent.append(list);
+}
+
+function cancelChatPending(){
+  if(chatController){chatGeneration++;chatController.abort();chatController=null;}
+  chatBusy=false;
+}
+function getRecentChatHistory(){
+  // Only complete prior user/assistant pairs count as conversation context.
+  const completed=[];
+  for(let i=0;i<chatMessages.length-1;i++){
+    if(chatMessages[i].role==='user' && chatMessages[i+1].role==='assistant'){
+      completed.push({role:'user',content:chatMessages[i].content.slice(0,650)});
+      completed.push({role:'assistant',content:chatMessages[i+1].content.slice(0,650)});
+      i++;
+    }
+  }
+  return completed.slice(-8);
+}
+function chatScrollToEnd(){
+  const feed=document.getElementById('chat-feed');
+  if(feed)feed.scrollTop=feed.scrollHeight;
+}
+function addChatBubble(message){
+  const feed=document.getElementById('chat-feed');
+  if(!feed)return;
+  const row=document.createElement('div');
+  const role=message.role==='user'?'user':message.role==='error'?'error':'assistant';
+  row.className=`chat-row chat-row-${role}`;
+  const avatar=document.createElement('span');avatar.className='chat-bubble-avatar';
+  avatar.innerHTML=icon(role==='user'?'person':role==='error'?'alert':'bot',17);
+  const body=document.createElement('div');body.className='chat-bubble-body';
+  const bubble=document.createElement('div');bubble.className='chat-bubble';
+  bubble.textContent=message.content;
+  body.append(bubble);
+  if(Array.isArray(message.sources)&&message.sources.length){
+    const sources=document.createElement('div');sources.className='chat-sources';
+    for(const src of message.sources){
+      try {const url=new URL(src.url);if(url.protocol!=='https:')continue;
+        const a=document.createElement('a');a.href=url.href;a.target='_blank';a.rel='noopener noreferrer';a.textContent=src.title||url.hostname;sources.append(a);
+      }catch{/* ignore malformed citations */}
+    }
+    if(sources.children.length)body.append(sources);
+  }
+  if(message.role==='assistant'&&message.preview){
+    const mark=document.createElement('small');mark.className='chat-preview-mark';
+    mark.textContent='AI Preview · তথ্য যাচাই করুন';body.append(mark);
+  }
+  const stamp=document.createElement('small');stamp.className='chat-time';
+  stamp.textContent=new Intl.DateTimeFormat('bn-BD',{hour:'2-digit',minute:'2-digit'}).format(new Date(message.at||Date.now()));
+  body.append(stamp);
+  row.append(avatar,body);feed.append(row);
+  chatScrollToEnd();
+}
+function showChatTyping(){
+  const feed=document.getElementById('chat-feed');if(!feed)return;
+  const row=document.createElement('div');row.id='chat-typing';row.className='chat-row chat-row-assistant chat-typing-row';
+  row.setAttribute('aria-label','AI উত্তর লিখছে');
+  const avatar=document.createElement('span');avatar.className='chat-bubble-avatar';avatar.innerHTML=icon('bot',17);
+  const bubble=document.createElement('div');bubble.className='chat-typing-bubble';bubble.innerHTML='<span></span><span></span><span></span>';
+  row.append(avatar,bubble);feed.append(row);chatScrollToEnd();
+}
+function setChatWaiting(waiting){
+  const btn=document.getElementById('chat-send');
+  const input=document.getElementById('chat-input');
+  if(btn){btn.disabled=waiting;btn.setAttribute('aria-busy',String(waiting));}
+  if(input){input.disabled=waiting;}
+}
+function initChatControls(){
+  const form=document.getElementById('chat-form');
+  if(!form)return;
+  const feed=document.getElementById('chat-feed');
+  for(const message of chatMessages)addChatBubble(message);
+  document.getElementById('chat-intro').hidden=chatMessages.length>0;
+  document.getElementById('chat-suggestions').hidden=chatMessages.length>0;
+  if(chatBusy)showChatTyping();
+  setChatWaiting(chatBusy);
+  form.addEventListener('submit',submitChatMessage);
+  const input=document.getElementById('chat-input');
+  input.addEventListener('keydown',(event)=>{
+    if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();form.requestSubmit();}
+  });
+  input.addEventListener('input',()=>{input.style.height='auto';input.style.height=Math.min(input.scrollHeight,130)+'px';});
+  document.getElementById('chat-new').addEventListener('click',()=>{
+    cancelChatPending();chatMessages.length=0;
+    feed.replaceChildren();
+    // Reinitialize the welcome and form while staying on this page.
+    render();document.getElementById('chat-input')?.focus();
+  });
+  document.querySelectorAll('[data-chat-prompt]').forEach(b=>b.addEventListener('click',()=>{
+    input.value=b.dataset.chatPrompt;input.dispatchEvent(new Event('input'));input.focus();
+  }));
+  chatScrollToEnd();
+}
+async function submitChatMessage(event){
+  event.preventDefault();
+  if(chatBusy)return;
+  const input=document.getElementById('chat-input');
+  const content=input?.value.trim();
+  if(!content)return;
+  if(content.length>950)return;
+  const history=getRecentChatHistory();
+  const generation=++chatGeneration;
+  const controller=new AbortController();chatController=controller;chatBusy=true;
+  const message={role:'user',content,at:Date.now()};
+  chatMessages.push(message);addChatBubble(message);
+  input.value='';input.style.height='auto';
+  document.getElementById('chat-intro')?.setAttribute('hidden','');
+  document.getElementById('chat-suggestions')?.setAttribute('hidden','');
+  setChatWaiting(true);showChatTyping();
+  let timeout;
+  try{
+    timeout=setTimeout(()=>controller.abort(),26000);
+    const response=await fetch('/api/workflows/ai-legal-assistant',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({question:content,history}),
+      credentials:'same-origin',cache:'no-store',signal:controller.signal
+    });
+    const data=await response.json();
+    if(generation!==chatGeneration)return;
+    document.getElementById('chat-typing')?.remove();
+    const answer=String(data.answer||data.message||'দুঃখিত, এখন উত্তর দেওয়া যাচ্ছে না।');
+    const reply={role:data.ok?'assistant':'error',content:answer,at:Date.now(),preview:data.mode==='preview_ai',sources:data.ok?data.sources:[]};
+    chatMessages.push(reply);addChatBubble(reply);
+  }catch(error){
+    if(generation!==chatGeneration)return;
+    document.getElementById('chat-typing')?.remove();
+    const reply={role:'error',content:'সংযোগে সমস্যা হয়েছে। আবার মেসেজ পাঠিয়ে চেষ্টা করুন।',at:Date.now()};
+    chatMessages.push(reply);addChatBubble(reply);
+  }finally{
+    clearTimeout(timeout);
+    if(generation===chatGeneration){chatBusy=false;chatController=null;setChatWaiting(false);document.getElementById('chat-input')?.focus();}
+  }
 }

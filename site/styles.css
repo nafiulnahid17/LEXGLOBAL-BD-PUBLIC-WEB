@@ -296,3 +296,84 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .workflow-sources a {color:#8fd7f5;text-decoration:underline;}
 .workflow-disclaimer {font-size:.88rem;opacity:.82;margin-top:12px;}
 .form-action[disabled] {opacity:.55;cursor:wait;}
+
+/* LexGlobal BD assistant — conversational workspace, separate from other public workflows. */
+.main-workspace:has(.chat-shell) { padding: 0; overflow: hidden; }
+.chat-shell { display:flex; flex-direction:column; height: min(72vh, 700px); min-height: 530px; background: radial-gradient(ellipse at 75% 10%,rgba(33,76,121,.28),transparent 50%),#081c32; }
+.chat-header { display:flex; align-items:center; gap:12px; padding: 16px 20px; min-height:76px; border-bottom:1px solid rgba(222,184,111,.19); background:rgba(8,25,45,.92); flex-shrink:0; }
+.chat-avatar { flex-shrink:0; display:grid; place-items:center; width:43px; height:43px; border-radius:15px; color:#ffe4a4; background:linear-gradient(135deg,#234b74,#081e3e); border:1px solid rgba(240,197,117,.57); box-shadow:0 0 20px rgba(235,182,78,.14); }
+.chat-assistant-info { min-width:0; display:flex; flex-direction:column; gap:5px; }
+.chat-assistant-info strong { color:#f7e7c7; font-size:15px; line-height:1.2; }
+.chat-assistant-info small { display:flex; align-items:center; gap:6px; font-size:11px; color:#9bbad1; }
+.chat-online-dot { background:#36dba6; width:7px; height:7px; border-radius:50%; box-shadow:0 0 8px rgba(63,226,157,.6); }
+.chat-reset { margin-left:auto; background:rgba(238,193,105,.07); color:#e9c98c; border:1px solid rgba(233,193,112,.3); border-radius:10px; padding:9px 12px; display:flex; gap:7px; align-items:center; justify-content:center; font-size:12px; cursor:pointer; transition:background .2s, border-color .2s; }
+.chat-reset:hover {background:rgba(235,191,107,.16);border-color:#d4a952;}
+.chat-feed { flex:1 1 auto; min-height:0; overflow:auto; padding:25px 22px; display:flex; flex-direction:column; gap:16px; scroll-behavior:smooth; overscroll-behavior:contain; background-image:radial-gradient(rgba(115,174,223,.07) .75px,transparent .75px); background-size:25px 25px; scrollbar-width:thin; scrollbar-color:#48637e transparent; }
+.chat-intro { margin:auto; max-width:350px; text-align:center; display:grid; justify-items:center; gap:10px; padding:24px; background:linear-gradient(140deg,rgba(24,54,84,.65),rgba(8,26,51,.65)); border:1px solid rgba(236,197,122,.21); border-radius:18px; }
+.chat-intro-icon { display:grid; place-items:center; width:53px; height:53px; border:1px solid #c4a56a; background:#173657; border-radius:18px; color:#f5d394; }
+.chat-intro strong { color:#f6dfb0; font-size:19px; }
+.chat-intro p { color:#c6d8e9; font-size:13px; margin:0; line-height:1.65; }
+.chat-intro small { color:#869db2; font-size:11px; }
+.chat-row { display:flex; align-items:flex-end; gap:9px; width:100%; animation:chat-pop .28s cubic-bezier(.2,.8,.2,1) both; }
+.chat-row-user { flex-direction:row-reverse; }
+.chat-bubble-avatar { flex:0 0 29px; width:29px; height:29px; display:grid; place-items:center; border-radius:12px; border:1px solid rgba(234,196,125,.3); background:linear-gradient(145deg,#153f64,#0b2341); color:#f2d29b; }
+.chat-row-user .chat-bubble-avatar { background:linear-gradient(145deg,#f0d491,#d7a957); color:#0e2339; }
+.chat-bubble-body { display:flex; flex-direction:column; align-items:flex-start; max-width:min(80%,570px); min-width:0; gap:5px; }
+.chat-row-user .chat-bubble-body { align-items:flex-end; }
+.chat-bubble { display:inline-block; max-width:100%; padding:13px 16px; border-radius:17px 17px 17px 5px; color:#e6f1ff; background:linear-gradient(145deg,#173958,#0e2846); border:1px solid rgba(92,153,210,.35); box-shadow:0 7px 15px rgba(0,0,0,.13); font-size:14px; line-height:1.72; white-space:pre-wrap; overflow-wrap:anywhere; }
+.chat-row-user .chat-bubble { border-radius:17px 17px 5px 17px; color:#13243a; font-weight:500; border-color:rgba(255,234,178,.85); background:linear-gradient(145deg,#ffe0a0,#e7bd70); }
+.chat-row-error .chat-bubble { border-color:rgba(230,126,126,.65); background:#342334; color:#ffe2e2; }
+.chat-time { padding:1px 5px; color:#859bb0; font-size:10px; }
+.chat-preview-mark { display:block; margin-top:2px; color:#e5ba75; font-size:10px; }
+.chat-sources { display:flex; flex-wrap:wrap; gap:6px; }
+.chat-sources a { padding:5px 8px; border-radius:8px; font-size:10px; background:#14395b; color:#c9e8ff; text-decoration:underline; text-underline-offset:2px; }
+.chat-typing-row { align-items:center; }
+.chat-typing-bubble { display:flex; gap:5px; align-items:center; height:39px; padding:0 17px; border-radius:15px 15px 15px 5px; background:#163755; border:1px solid rgba(104,158,210,.36); }
+.chat-typing-bubble span { width:7px; height:7px; background:#f2cd89; border-radius:50%; animation:chat-typing 1.15s infinite ease-in-out; }
+.chat-typing-bubble span:nth-child(2) { animation-delay:.16s; }
+.chat-typing-bubble span:nth-child(3) { animation-delay:.32s; }
+.chat-bottom { flex:0 0 auto; padding:12px 16px 10px; background:linear-gradient(180deg,#0d2946,#091e35); border-top:1px solid rgba(233,190,117,.23); }
+.chat-suggestions { display:flex; gap:8px; overflow-x:auto; padding:0 0 11px; scrollbar-width:none; }
+.chat-suggestions button { flex-shrink:0; border:1px solid rgba(235,195,121,.35); background:#183451; color:#e6d0ac; border-radius:100px; padding:7px 11px; font-size:11px; cursor:pointer; }
+.chat-suggestions button:hover { background:#284963; }
+.chat-composer { display:flex; align-items:flex-end; gap:9px; padding:7px 8px 7px 16px; border-radius:19px; background:#091b31; border:1px solid rgba(221,188,126,.52); box-shadow:0 5px 14px rgba(0,0,0,.12); }
+.chat-composer:focus-within { border-color:#ffdd9b; box-shadow:0 0 0 2px rgba(252,209,125,.11); }
+.chat-composer textarea { flex:1 1 auto; min-width:0; min-height:33px; max-height:130px; resize:none; color:#edf6ff; font-size:13px; line-height:1.5; border:0; padding:7px 0; outline:none; box-shadow:none; background:transparent; }
+.chat-composer textarea:focus-visible { outline:none !important; }
+.chat-composer textarea::placeholder { color:#829cb5; }
+.chat-send { display:grid; place-items:center; flex:0 0 39px; width:39px; height:39px; border:0; background:linear-gradient(145deg,#ffe3a7,#dfae59); color:#15273a; border-radius:13px; cursor:pointer; transition:transform .18s,box-shadow .18s; }
+.chat-send:not(:disabled):hover { transform:translateY(-2px); box-shadow:0 6px 16px rgba(238,195,109,.25); }
+.chat-send:disabled { opacity:.48; cursor:wait; }
+.chat-hint { margin:7px 3px 0; color:#91a7bf; font-size:10px; line-height:1.5; }
+.chat-hint span {color:#cfb887;}
+@keyframes chat-pop {from{opacity:0; transform:translateY(9px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
+@keyframes chat-typing {0%,60%,100%{transform:translateY(0);opacity:.36}30%{transform:translateY(-5px);opacity:1}}
+@media (max-width:740px) {
+ .main-workspace:has(.chat-shell) { padding:0; }
+ .chat-shell { height:min(74dvh,720px); min-height:450px; }
+ .chat-header { padding:12px 14px; min-height:67px; }
+ .chat-assistant-info strong {font-size:13px;}
+ .chat-reset {padding:8px 9px;}
+ .chat-reset span {display:none;}
+ .chat-feed {padding:18px 12px;gap:12px;}
+ .chat-bubble {padding:10px 12px;font-size:13px;}
+ .chat-bubble-body {max-width:85%;}
+ .chat-bubble-avatar {flex-basis:25px;width:25px;height:25px;}
+ .chat-bottom {padding:10px 10px 8px;}
+ .chat-hint {font-size:9px;}
+}
+@media (prefers-reduced-motion:reduce){ .chat-row,.chat-typing-bubble span{animation:none!important;} .chat-feed{scroll-behavior:auto!important;} }
+
+/* The assistant prioritizes chat over a decorative hero. */
+.feature-hero--chat { min-height:162px; }
+.feature-hero--chat .feature-hero-copy { padding:18px 27px; }
+.feature-hero--chat h1 {font-size:clamp(25px,2.35vw,34px);margin:9px 0 4px;}
+.feature-hero--chat h2 {font-size:15px;margin-bottom:5px;}
+.feature-hero--chat .feature-hero-points {display:none;}
+.feature-hero--chat p {font-size:12px;}
+@media (max-width:740px) {
+ .feature-hero--chat {min-height:220px;}
+ .feature-hero--chat .feature-hero-preview {height:76px;}
+ .feature-hero--chat .feature-hero-copy {padding:0 18px 17px;}
+ .feature-hero--chat h1 {font-size:25px;}
+}
