@@ -47,14 +47,52 @@ function subject(type,data,lang){
   if(type.id==='general-application')return field(data,'purpose',lang,lang==='bn'?'প্রয়োজনীয় ব্যবস্থা গ্রহণের আবেদন':'Application for Appropriate Action');
   return (lang==='bn'?bn[type.id]:en[type.id])||(lang==='bn'?type.bn:type.en);
 }
+export function draftTypeMismatch(type,data){
+  if(!['legal-notice','demand-notice'].includes(type?.id))return null;
+  const recipient=String(data.receiverName||'').toLowerCase();
+  const purpose=(String(data.purpose||'')+' '+String(data.details||'')).toLowerCase();
+  if(/police\s*(?:station|thana)|\bthana\b|officer.in.charge|থানা|পুলিশ স্টেশন|অফিসার ইনচার্জ/iu.test(recipient)
+    ||/\bGD\b|general\s*diary|সাধারণ ডায়েরি|সাধারণ ডায়েরি/iu.test(purpose))
+    return {suggestedDraftTypeId:'gd-application',message:'পুলিশ স্টেশনে GD করতে চাইলে “GD Application” নির্বাচন করুন। আইনি নোটিশ ও GD এক নয়।'};
+  return null;
+}
+function unpack(raw) {
+  let text=String(raw||'').trim();
+  const tick=String.fromCharCode(96);
+  if(text.startsWith(tick))text=text.replace(new RegExp('^'+tick+'{3}(?:json)?\\s*','i'),'').replace(new RegExp('\\s*'+tick+'{3}$'),'').trim();
+  if(text.startsWith('{')){
+    try{
+      const obj=JSON.parse(text);
+      if(obj&&!Array.isArray(obj)&&typeof obj.narrative==='string')
+        return {narrative:obj.narrative,subject:typeof obj.subject==='string'?obj.subject:'',names:obj.names&&typeof obj.names==='object'?obj.names:{}};
+    }catch{/* older plain text model supported */}
+  }
+  return {narrative:text,subject:'',names:{}};
+}
+function displayField(data,model,key,lang,placeholder){
+  const original=cleanText(data[key]);
+  if(!original)return placeholder||(lang==='bn'?'[যাচাই প্রয়োজন]':'[To be verified]');
+  const suggested=cleanText(model.names?.[key]);
+  if(lang==='bn'&&/[a-z]/i.test(original)&&suggested&&suggested.length<=160
+    &&/[\u0980-\u09FF]/u.test(suggested)&&!/[a-z]/i.test(suggested))return suggested;
+  return original;
+}
+function specificSubject(type,data,model,lang,notice){
+  const generic=/^(?:আইনি নোটিশ|legal notice|আবেদন|application|দাবি|notice)$/iu;
+  for(const item of [cleanText(data.purpose),cleanText(model.subject)]){
+    if(item.length>9&&!generic.test(item)&&(lang==='bn'?/[\u0980-\u09FF]/u.test(item):! /[\u0980-\u09FF]/u.test(item)))return item;
+  }
+  return notice?(lang==='bn'?'[নোটিশের নির্দিষ্ট বিষয়]':'[Specific subject of notice]'):subject(type,data,lang);
+}
 function narrative(answer,data,lang){
-  const draft=cleanText(answer);
-  const bad=/^\s*(?:বরাবর|বিষয়\s*[:：]|বিষয়\s*[:：]|মহোদয়|মহোদয়|বিনীত নিবেদক|অতএব|পাঠানো\s+হ|গ্রহণ\s+করা\s+হ|সাধারণ\s+ডায়েরির\s+আবেদন|আইনি\s+নোটিশ|To\s*:|Subject\s*:|Dear\s+Sir|Yours\s+(?:faithfully|sincerely)|Sender\s*:|Receiver\s*:)/imu;
+  const model=unpack(answer),text=cleanText(model.narrative);
+  const bad=/^\s*(?:বরাবর|বিষয়\s*[:：]|বিষয়\s*[:：]|মহোদয়|মহোদয়|বিনীত নিবেদক|অতএব|পাঠানো\s+হ|গ্রহণ\s+করা\s+হ|সাধারণ\s+ডায়েরির\s+আবেদন|আইনি\s+নোটিশ|To\s*:|Subject\s*:|Dear\s+Sir|Yours\s+(?:faithfully|sincerely)|Sender\s*:|Receiver\s*:|LEGAL NOTICE)/imu;
   const meta=/AI can make mistakes|I'm an AI|নমুনা ড্রাফট|Sample Draft\s*:/imu;
-  const body=(!draft||draft.length<18||bad.test(draft)||meta.test(draft))?cleanText(data.details):draft;
+  const body=(!text||text.length<18||bad.test(text)||meta.test(text))?cleanText(data.details):text;
   if(lang==='bn'&&!/[\u0980-\u09FF]/u.test(body))throw new Error('DRAFT_TRANSLATION_UNVERIFIED');
+  if(lang==='en'&&/[\u0980-\u09FF]/u.test(body))throw new Error('DRAFT_TRANSLATION_UNVERIFIED');
   if(body.length<15)throw new Error('DRAFT_NARRATIVE_MISSING');
-  return body;
+  return {body,model};
 }
 function letter(type,data,body,lang,notice){
   const gd=type.id==='gd-application',village=type.id==='village-court-application',bn=lang==='bn';
