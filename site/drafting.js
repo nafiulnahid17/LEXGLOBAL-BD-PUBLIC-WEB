@@ -28,6 +28,19 @@ export function draftingWorkspace() {
       '<strong id="ds-selected-name">Legal Notice</strong><span id="ds-selected-bn"></span></div>',
       '<span class="ds-profile-pill" id="ds-profile-pill">A4 working draft</span></div>',
       '<div class="ds-fields">',
+      '<fieldset class="ds-parties"><legend>Document Parties & Place · পক্ষ ও স্থান</legend>',
+      '<p class="ds-fields-note">যতটুকু তথ্য জানা আছে দিন। ফাঁকা থাকলে AI খসড়ায় [যাচাই প্রয়োজন] placeholder রাখবে।</p>',
+      '<div class="ds-party-grid">',
+      '<div class="ds-party-group"><h4>Sender / Applicant · প্রেরক / আবেদনকারী</h4>',
+      '<label for="ds-sender-name">Name / নাম</label><input id="ds-sender-name" maxlength="160" autocomplete="off" placeholder="Sender / Applicant name">',
+      '<label for="ds-sender-address">Address / ঠিকানা</label><textarea id="ds-sender-address" rows="2" maxlength="320" placeholder="Sender address (optional)"></textarea></div>',
+      '<div class="ds-party-group"><h4>Receiver / Addressee · প্রাপক / অপর পক্ষ</h4>',
+      '<label for="ds-receiver-name">Name / Office / নাম</label><input id="ds-receiver-name" maxlength="160" autocomplete="off" placeholder="Receiver / Authority name">',
+      '<label for="ds-receiver-address">Address / ঠিকানা</label><textarea id="ds-receiver-address" rows="2" maxlength="320" placeholder="Receiver address (optional)"></textarea></div>',
+      '</div><div class="ds-party-grid ds-location-grid">',
+      '<div><label for="ds-location">Location / District / Thana · স্থান</label><input id="ds-location" maxlength="160" autocomplete="off" placeholder="City, district or relevant location"></div>',
+      '<div><label for="ds-document-date">Document Date / তারিখ (optional)</label><input id="ds-document-date" type="date" aria-label="Document date"></div>',
+      '</div></fieldset>',
       '<label for="ds-purpose">Purpose / কী করতে চান? <span>Optional</span></label>',
       '<input id="ds-purpose" maxlength="160" placeholder="e.g. Send a legal notice / আইনি নোটিশ পাঠাতে চাই">',
       '<label for="ds-incident">Incident Details / ঘটনার বিবরণ <b>*</b></label>',
@@ -48,7 +61,7 @@ export function draftingWorkspace() {
       '<h3>Edit & Export Your Draft</h3></div><span class="ds-tag" id="ds-preview-status">AI Preview · Review Required</span></div>',
       '<div class="ds-editor-toolbar"><span id="ds-document-title"></span><span id="ds-document-profile"></span></div>',
       '<textarea id="ds-draft-text" aria-label="Editable draft text" spellcheck="true"></textarea>',
-      '<p class="ds-output-hint">আপনি এখানে খসড়ার লেখা সরাসরি সংশোধন করতে পারবেন। ডাউনলোড করার আগে প্রতিটি তথ্য যাচাই করুন।</p>',
+      '<p class="ds-ai-disclaimer" id="ds-ai-disclaimer" role="note">AI can make mistakes. খসড়ার তথ্য ও আইন যাচাই করুন; প্রয়োজন হলে আইনজীবীর পরামর্শ নিন। এই সতর্কতা ডকুমেন্টের অংশ নয় এবং export-এ যাবে না।</p>',
       '<div id="ds-output-sources" class="ds-sources"></div>',
       '<div class="ds-export"><button type="button" id="ds-copy">Copy Text</button>',
       '<button type="button" id="ds-docx">Download Word (.docx)</button>',
@@ -146,35 +159,55 @@ function renderSources(sources){
     }catch{/* ignore */}
   }
 }
+const PARTY_FIELDS = {
+  senderName:'ds-sender-name',senderAddress:'ds-sender-address',
+  receiverName:'ds-receiver-name',receiverAddress:'ds-receiver-address',
+  location:'ds-location',documentDate:'ds-document-date'
+};
+function readPartyFields(){
+  return Object.fromEntries(Object.entries(PARTY_FIELDS).map(([key,id])=>[key,el(id)?.value.trim()||'']));
+}
+function inputSignature(type,purpose,details,language,parties){
+  return JSON.stringify([type,purpose,details,language,parties]);
+}
+// Remove ONLY distinct trailing AI disclaimers, not substantive clauses or placeholders.
+export function cleanDraftDocument(raw){
+  const paragraphs=String(raw||'').trim().replace(/\r\n?/g,'\n').split(/\n\s*\n/);
+  const disclaimer=/^(?:\*{0,2})?(?:Disclaimer|Important note|AI can make mistakes|AI-generated|This is (?:an? )?(?:AI|sample) draft|Please (?:verify|consult)|দ্রষ্টব্য\s*[:：]|সতর্কতা\s*[:：]|এই খসড়া এআই[-\s]?(?:প্রস্তুত|তৈরি)|এটি এআই[-\s]?(?:প্রস্তুত|তৈরি)|আইনি পরামর্শ নয়)[\s\S]*$/iu;
+  while(paragraphs.length>1&&disclaimer.test(paragraphs[paragraphs.length-1].trim()))paragraphs.pop();
+  return paragraphs.join('\n\n').trim();
+}
 async function generateDraft(){
   if(state.busy)return;
   const details=el('ds-incident').value.trim(),purpose=el('ds-purpose').value.trim();
   if(details.length<20){setStatus('অন্তত ২০ অক্ষরে ঘটনার সাধারণ বিবরণ লিখুন।','error');el('ds-incident').focus();return;}
   const type=byId(state.selected);
   const submittedLanguage=el('ds-output-language').value;
-  const submittedSignature=JSON.stringify([type.id,purpose,details,submittedLanguage]);
+  const parties=readPartyFields();
+  const submittedSignature=inputSignature(type.id,purpose,details,submittedLanguage,parties);
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),45000);
   setBusy(true);setStatus('ড্রাফট প্রস্তুত করা হচ্ছে…');
   try{
     const response=await fetch('/api/workflows/instant-legal-draft',{
       method:'POST',headers:{'content-type':'application/json'},
       credentials:'same-origin',cache:'no-store',signal:controller.signal,
-      body:JSON.stringify({draftTypeId:type.id,document:type.en,purpose,details,outputLanguage:submittedLanguage})
+      body:JSON.stringify({draftTypeId:type.id,document:type.en,purpose,details,outputLanguage:submittedLanguage,...parties})
     });
     const result=await response.json();
     if(!response.ok || !result.ok)throw new Error(result.message||'Draft generation unavailable');
-    if(!result.answer||result.answer.trim().length<15)throw new Error('No usable draft was generated');
+    const cleanedDraft=cleanDraftDocument(result.answer);
+    if(cleanedDraft.length<15)throw new Error('No usable draft was generated');
     if(!el('ds-result'))return; // User navigated away while the AI was working.
-    const currentSignature=JSON.stringify([state.selected,el('ds-purpose').value.trim(),el('ds-incident').value.trim(),el('ds-output-language').value]);
+    const currentSignature=inputSignature(state.selected,el('ds-purpose').value.trim(),el('ds-incident').value.trim(),el('ds-output-language').value,readPartyFields());
     if(currentSignature!==submittedSignature){setStatus('ইনপুট বদলেছে। নতুন তথ্য অনুযায়ী Generate করুন।','warning');return;}
     state.generated=true;state.generatedType=type.id;
     state.generatedLanguage=submittedLanguage==='auto'
-      ? (/[\u0980-\u09ff]/u.test(result.answer)?'bn':'en') : submittedLanguage;
+      ? (/[\u0980-\u09ff]/u.test(cleanedDraft)?'bn':'en') : submittedLanguage;
     state.incomplete=Boolean(result.incomplete);
     el('ds-result').hidden=false;
     el('ds-document-title').textContent=type.en+' · '+type.bn;
     el('ds-document-profile').textContent=DRAFT_FORMAT_PROFILES[type.profile].page+' · Editable';
-    el('ds-draft-text').value=result.answer;
+    el('ds-draft-text').value=cleanedDraft;
     el('ds-preview-status').textContent=result.mode==='grounded_ai'?'Source-linked · Lawyer Review':'AI Preview · Unverified';
     syncPreview();renderSources(result.sources);
     if(state.incomplete)setStatus('⚠ AI উত্তর অসম্পূর্ণ হতে পারে। Draft সম্পাদনা করুন এবং পুনরায় generate বা আইনজীবীর সঙ্গে যাচাই করুন।','warning');
@@ -217,11 +250,19 @@ export function buildDraftDocx(title,text,profile,lang='bn'){
   const effectiveLanguage=lang==='auto'?(/[\u0980-\u09ff]/u.test(text)?'bn':'en'):lang;
   const size=effectiveLanguage==='en'?conf.enPt:conf.bnPt;
   const margin=Math.round(conf.marginMm*1440/25.4); // twips per 25.4 mm (one inch)
-  const p=text.replace(/\r\n?/g,'\n').split('\n').map(line=>
-    '<w:p><w:pPr><w:spacing w:line="'+Math.round(conf.spacing*240)+'" w:lineRule="auto"/></w:pPr>'+
-    '<w:r><w:rPr><w:rFonts w:ascii="'+xmlEscape(conf.enFont)+'" w:hAnsi="'+xmlEscape(conf.enFont)+'" w:eastAsia="'+xmlEscape(conf.bnFont)+'" w:cs="'+xmlEscape(effectiveLanguage==='en'?conf.enFont:conf.bnFont)+'"/>'+
-    '<w:sz w:val="'+(size*2)+'"/><w:szCs w:val="'+(size*2)+'"/></w:rPr><w:t xml:space="preserve">'+xmlEscape(line)+'</w:t></w:r></w:p>').join('');
-  const body='<w:p><w:r><w:t>'+xmlEscape('DRAFT — REVIEW BEFORE USE: '+title)+'</w:t></w:r></w:p>'+p+
+  const lines=text.replace(/\r\n?/g,'\n').split('\n');
+  const firstLine=lines.findIndex(line=>line.trim().length>0);
+  const p=lines.map((line,index)=>{
+    const heading=index===firstLine;
+    const subject=/^\s*(?:বিষয়|বিষয়|subject|re\s*:|বরাবর\s*:|to\s*:|from\s*:)/iu.test(line);
+    const party=/^\s*(?:তারিখ|স্থান|প্রেরক|প্রাপক|ঠিকানা|date|place|sender|receiver|applicant|respondent|address|বিনীত|স্বাক্ষর|signature)/iu.test(line);
+    const alignment=heading?'center':subject||party||!line.trim()?'left':'both';
+    const bold=heading||subject?'<w:b/>':'';
+    return '<w:p><w:pPr><w:jc w:val="'+alignment+'"/><w:spacing w:line="'+Math.round(conf.spacing*240)+'" w:lineRule="auto"/></w:pPr>'+
+      '<w:r><w:rPr>'+bold+'<w:rFonts w:ascii="'+xmlEscape(conf.enFont)+'" w:hAnsi="'+xmlEscape(conf.enFont)+'" w:eastAsia="'+xmlEscape(conf.bnFont)+'" w:cs="'+xmlEscape(effectiveLanguage==='en'?conf.enFont:conf.bnFont)+'"/>'+
+      '<w:sz w:val="'+(size*2)+'"/><w:szCs w:val="'+(size*2)+'"/></w:rPr><w:t xml:space="preserve">'+xmlEscape(line)+'</w:t></w:r></w:p>';
+  }).join('');
+  const body=p+
     '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="'+margin+'" w:right="'+margin+'" w:bottom="'+margin+'" w:left="'+margin+'"/></w:sectPr>';
   const doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
@@ -245,7 +286,7 @@ function exportDraft(type){
   if(state.incomplete && !window.confirm('AI উত্তর অসম্পূর্ণ হতে পারে। নিজে যাচাই করে তবেই Export করবেন। চালিয়ে যাবেন?'))return;
   const kind=byId(state.generatedType),name='LexGlobalBD-'+kind.id;
   if(type==='copy'){navigator.clipboard.writeText(text).then(()=>setStatus('Text copied.','success')).catch(()=>setStatus('Copy unavailable; select the text manually.','error'));return;}
-  if(type==='txt'){downloadBlob(new Blob(['DRAFT — REVIEW BEFORE USE\n\n'+text],{type:'text/plain;charset=utf-8'}),name+'.txt');return;}
+  if(type==='txt'){downloadBlob(new Blob([text],{type:'text/plain;charset=utf-8'}),name+'.txt');return;}
   if(type==='docx'){downloadBlob(buildDraftDocx(kind.en,text,kind.profile,state.generatedLanguage),name+'.docx');return;}
   if(type==='pdf'){syncPreview();window.print();}
 }
@@ -265,6 +306,7 @@ export function bindDraftingStudio(){
     }
   });
   el('ds-search').addEventListener('input',event=>{state.search=event.target.value.trim();renderCatalog();});
+  for(const id of Object.values(PARTY_FIELDS))el(id).addEventListener('input',invalidateGeneratedDraft);
   el('ds-purpose').addEventListener('input',invalidateGeneratedDraft);
   el('ds-output-language').addEventListener('change',invalidateGeneratedDraft);
   el('ds-incident').addEventListener('input',event=>{
@@ -276,6 +318,7 @@ export function bindDraftingStudio(){
   el('ds-reset').addEventListener('click',()=>{
     if(el('ds-incident').value && !window.confirm('বর্তমান ঘটনার বিবরণ মুছে ফেলবেন?'))return;
     el('ds-purpose').value='';el('ds-incident').value='';el('ds-output-language').value='auto';
+    for(const id of Object.values(PARTY_FIELDS))el(id).value='';
     el('ds-result').hidden=true;el('ds-status').hidden=true;state.generated=false;state.generatedType=null;state.incomplete=false;
     el('ds-chars').textContent='0 / 2600';el('ds-detected').textContent='Language: Auto';
   });
