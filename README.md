@@ -123,3 +123,10 @@ The Public `/public/instant-legal-draft` route now contains a full bilingual dra
 - The other ten Public feature routes and existing AI Legal Assistant are preserved.
 
 Tests: `npm test` covers the catalog, server-side validation, language routing, the draft prompt, and Word XML packaging. Live Workers AI factual accuracy, source indexing, and court-format acceptance **are not guaranteed by automated tests**.
+
+
+### Instant Legal Drafting QA refinements (November 2026)
+
+The generated document is now tied to its selected draft type and output language. Changing the document type, incident, purpose or output language invalidates a stale preview and requires regeneration, preventing a Legal Notice from being incorrectly downloaded as a Bail Petition. Category-specific **preparation hints** help users supply context without making unsupported legal-filing claims; high-risk court and registry types display an explicit lawyer-review warning. Word (.docx) exports now use configured page-profile margins and Bengali complex-script font settings, and auto output-language selection respects generated document script. Browser print remains Save-as-PDF, not a certified court filing format.
+
+Automated tests cover all 78 draft types, 9 categories, safeguards, editable DOCX structure, formatting profiles and stale-draft prevention. These are software tests and do not establish legal sufficiency or court acceptance.

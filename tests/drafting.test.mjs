@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DRAFT_CATEGORIES,DRAFT_TYPES,FEATURED_DRAFT_IDS,DRAFT_FORMAT_PROFILES,getDraftType} from '../site/drafting-catalog.js';
-import {draftingWorkspace,buildDraftDocx} from '../site/drafting.js';
+import {draftingWorkspace,buildDraftDocx,bindDraftingStudio} from '../site/drafting.js';
 import api from '../worker/index.js';
 
 const origin='https://lexglobal.example';
@@ -126,4 +126,74 @@ test('DOCX export is a valid ZIP structure with Word XML and safe escaped conten
   assert.match(xml,/Noto Serif Bengali/);
   assert.match(xml,/11906/); // A4 page size in twips
   assert.ok(!xml.includes('<টেক্সট>'));
+});
+
+
+test('preparation guidance and lawyer review notice are present in drafting workspace',()=>{
+  const html=draftingWorkspace();
+  assert.match(html,/id="ds-preparation-hints"/);
+  assert.match(html,/id="ds-review-note"/);
+});
+
+test('DOCX uses page-profile margins and Bengali complex-script font settings',async()=>{
+  const conf=DRAFT_FORMAT_PROFILES.standard;
+  const original=conf.marginMm;
+  try {
+    conf.marginMm=30;
+    const blob=buildDraftDocx('Legal Notice','ঘটনার বিবরণ পরীক্ষা করছি।','standard','auto');
+    const files=readZipEntries(await blob.arrayBuffer());
+    const xml=files.get('word/document.xml');
+    const margin=Math.round(30*1440/25.4);
+    assert.match(xml,new RegExp('w:pgMar w:top="'+margin+'" w:right="'+margin+'"'));
+    assert.match(xml,/w:cs="Noto Serif Bengali"/);
+    assert.match(xml,/w:szCs w:val="28"/);
+  } finally {conf.marginMm=original;}
+});
+
+test('auto DOCX language chooses English font size for English-only draft',async()=>{
+  const blob=buildDraftDocx('Legal Notice','This is an English legal drafting sample.','standard','auto');
+  const files=readZipEntries(await blob.arrayBuffer());
+  const xml=files.get('word/document.xml');
+  assert.match(xml,/w:sz w:val="24"/);
+  assert.match(xml,/w:cs="Times New Roman"/);
+});
+
+test('selecting a new drafting type invalidates older generated output instead of mislabelled export',async()=>{
+  const originalDocument=globalThis.document;
+  const originalWindow=globalThis.window;
+  const originalFetch=globalThis.fetch;
+  const elements=new Map();
+  const ensure=(id)=>{
+    if(!elements.has(id)) elements.set(id,{
+      value:'',hidden:false,style:{},dataset:{},listeners:{},
+      addEventListener(event,callback){this.listeners[event]=callback;},
+      replaceChildren(){},append(){},scrollIntoView(){},focus(){}
+    });
+    return elements.get(id);
+  };
+  globalThis.document={getElementById:ensure};
+  globalThis.window={confirm:()=>true};
+  globalThis.fetch=async()=>new Response(JSON.stringify({
+    ok:true,answer:'SAMPLE LEGAL NOTICE\nParties: [Names to verify]\nRelevant facts will be checked.',
+    incomplete:false,mode:'preview_ai',sources:[]
+  }),{status:200,headers:{'content-type':'application/json'}});
+  try {
+    ensure('ds-incident').value='একটি কাল্পনিক ভূমি সংক্রান্ত সমস্যার সাধারণ বিবরণ এখানে লিখেছি।';
+    ensure('ds-output-language').value='auto';
+    bindDraftingStudio();
+    await ensure('ds-generate').listeners.click();
+    assert.equal(ensure('ds-result').hidden,false);
+    assert.match(ensure('ds-document-title').textContent,/Legal Notice/);
+    const target={
+      closest(selector){return selector==='[data-draft-id]'?{dataset:{draftId:'bail-petition'}}:null;}
+    };
+    ensure('draft-studio').listeners.click({target});
+    assert.equal(ensure('ds-result').hidden,true,'stale draft preview must disappear');
+    assert.equal(ensure('ds-selected-name').textContent,'Bail Petition');
+    assert.match(ensure('ds-status').textContent,/নতুন Draft তৈরি করুন/);
+  } finally {
+    if(originalDocument===undefined) delete globalThis.document; else globalThis.document=originalDocument;
+    if(originalWindow===undefined) delete globalThis.window; else globalThis.window=originalWindow;
+    globalThis.fetch=originalFetch;
+  }
 });

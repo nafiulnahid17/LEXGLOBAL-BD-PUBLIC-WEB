@@ -2,7 +2,7 @@ import { DRAFT_CATEGORIES, DRAFT_TYPES, FEATURED_DRAFT_IDS, DRAFT_FORMAT_PROFILE
 
 const featured = FEATURED_DRAFT_IDS.map(getDraftType).filter(Boolean);
 const icons = {general:'✍',criminal:'⚖',civil:'§',family:'♡',property:'⌂',business:'▣',employment:'♙',higher:'⚑',settlement:'◇'};
-const state = {category:'all',selected:'legal-notice',search:'',generated:false,incomplete:false,busy:false,outputLanguage:'auto'};
+const state = {category:'all',selected:'legal-notice',search:'',generated:false,generatedType:null,generatedLanguage:'bn',incomplete:false,busy:false,outputLanguage:'auto'};
 const el = id => document.getElementById(id);
 const safe = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const byId = id => getDraftType(id) || getDraftType('legal-notice');
@@ -37,6 +37,8 @@ export function draftingWorkspace() {
       '<select id="ds-output-language"><option value="auto">Auto — match incident language</option>',
       '<option value="bn">বাংলা — Formal Bangla</option><option value="en">English — Professional English</option></select>',
       '<div id="ds-format-note" class="ds-format-note"></div>',
+      '<div id="ds-preparation-hints" class="ds-preparation-hints" role="note"></div>',
+      '<div id="ds-review-note" class="ds-review-note" role="note" hidden></div>',
       '<div class="ds-warning">⚠ এটি AI-প্রস্তুত নমুনা খসড়া। সত্য তথ্য, সংশ্লিষ্ট আইন, আদালতের নিয়ম, স্বাক্ষর, ফি ও দলিলের ফরম্যাট পেশাদারভাবে যাচাই করুন। পরিচয়পত্র/পাসপোর্ট নম্বর বা গোপন নথি লিখবেন না।</div>',
       '<div class="ds-actions"><button type="button" id="ds-generate" class="ds-generate">✦ &nbsp; Generate Draft <span>→</span></button>',
       '<button type="button" id="ds-reset" class="ds-secondary">Clear Fields</button></div>',
@@ -63,6 +65,24 @@ function card(item, featuredCard=false) {
     '<span class="ds-type-icon">'+safe(icons[item.category]||'✍')+'</span><strong>'+safe(item.en)+'</strong>'+
     '<small>'+safe(item.bn)+'</small></button>';
 }
+const DRAFT_PREPARATION_HINTS = {
+  general:['ঘটনার তারিখ ও স্থান','কাকে নোটিশ বা আবেদন দেবেন [যাচাই প্রয়োজন]','আপনি কী ফলাফল চান'],
+  criminal:['ঘটনা ও সম্ভাব্য প্রমাণের সময়ক্রম','সংশ্লিষ্ট থানা বা আদালতের তথ্য [যাচাই প্রয়োজন]','যে প্রতিকার চাইছেন'],
+  civil:['ঘটনা, বিরোধের পক্ষ ও দাবির ভিত্তি','সম্পর্কিত নথির সংক্ষিপ্ত তালিকা','প্রার্থিত প্রতিকার ও আদালত [যাচাই প্রয়োজন]'],
+  family:['প্রাসঙ্গিক ঘটনার সময়ক্রম','কাদের বিষয়ে আবেদন [নাম পরে যাচাই]','কী প্রতিকার বা সহায়তা প্রয়োজন'],
+  property:['সম্পত্তির বিবরণ ও দলিল [যাচাই প্রয়োজন]','ঘটনার সময়ক্রম','সংশ্লিষ্ট অফিসের নির্ধারিত ফরম যাচাই'],
+  business:['পক্ষ ও চুক্তির উদ্দেশ্য','দায়িত্ব, মেয়াদ ও অর্থনৈতিক শর্ত','বিশেষ বিধান ও স্বাক্ষরকারী [যাচাই প্রয়োজন]'],
+  employment:['কাজ বা সেবার সম্পর্ক','তারিখ, দায়িত্ব ও বকেয়া দাবির সাধারণ বিবরণ','যে সমাধান চাইছেন'],
+  higher:['বিষয়, ঘটনা ও আগের আদেশের বিবরণ','আদালত, এখতিয়ার ও সময়সীমা [যাচাই প্রয়োজন]','আইনজীবীর বাধ্যতামূলক বিশেষজ্ঞ রিভিউ'],
+  settlement:['কাদের মধ্যে সমঝোতা','বিরোধের সংক্ষিপ্ত বিবরণ','সমঝোতার শর্ত ও দায়বদ্ধতা']
+};
+function invalidateGeneratedDraft(){
+  if(!state.generated)return;
+  state.generated=false;state.generatedType=null;state.incomplete=false;
+  const result=el('ds-result');if(result)result.hidden=true;
+  setStatus('তথ্য বা Draft Type পরিবর্তিত হয়েছে। পুরোনো ডকুমেন্ট export না করে নতুন Draft তৈরি করুন।','warning');
+}
+
 function renderCatalog(){
   if(!el('ds-types'))return;
   el('ds-featured').innerHTML=featured.map(item=>card(item,true)).join('');
@@ -83,6 +103,10 @@ function renderCatalog(){
   el('ds-format-note').textContent=
     'Format suggestion: '+profile.page+', '+profile.marginMm+'mm margin, Bengali '+profile.bnPt+
     'pt / English '+profile.enPt+'pt, line spacing '+profile.spacing+'. '+profile.note;
+  el('ds-preparation-hints').textContent='তথ্য প্রস্তুতির চেকলিস্ট (পরামর্শ, বাধ্যতামূলক ফরম নয়): '+(DRAFT_PREPARATION_HINTS[selected.category]||DRAFT_PREPARATION_HINTS.general).join(' · ');
+  const review=el('ds-review-note');
+  review.hidden=!selected.review;
+  review.textContent=selected.review?'⚠ উচ্চ ঝুঁকির আইনি ড্রাফট: আদালত বা রেজিস্ট্রি অফিসে ব্যবহারের আগে আইনজীবী ও সংশ্লিষ্ট কর্তৃপক্ষের বর্তমান নিয়ম যাচাই আবশ্যক।':'';
 }
 function detectIncidentLanguage(text){
   if(/[\u0980-\u09ff]/u.test(text))return 'Bangla → বাংলা';
@@ -102,7 +126,12 @@ function setBusy(busy){
   node.disabled=busy;node.textContent=busy?'Generating with Cloudflare AI…':'✦ Generate Draft →';
 }
 function syncPreview(){
-  if(el('ds-print-only') && el('ds-draft-text'))el('ds-print-only').textContent=el('ds-draft-text').value;
+  const printable=el('ds-print-only'),editor=el('ds-draft-text');
+  if(!printable||!editor)return;
+  printable.textContent=editor.value;
+  const profile=DRAFT_FORMAT_PROFILES[byId(state.generatedType||state.selected).profile];
+  printable.style.fontSize=(state.generatedLanguage==='en'?profile.enPt:profile.bnPt)+'pt';
+  printable.style.lineHeight=String(profile.spacing);
 }
 function renderSources(sources){
   const container=el('ds-output-sources');container.replaceChildren();
@@ -122,18 +151,26 @@ async function generateDraft(){
   const details=el('ds-incident').value.trim(),purpose=el('ds-purpose').value.trim();
   if(details.length<20){setStatus('অন্তত ২০ অক্ষরে ঘটনার সাধারণ বিবরণ লিখুন।','error');el('ds-incident').focus();return;}
   const type=byId(state.selected);
+  const submittedLanguage=el('ds-output-language').value;
+  const submittedSignature=JSON.stringify([type.id,purpose,details,submittedLanguage]);
   const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),45000);
   setBusy(true);setStatus('ড্রাফট প্রস্তুত করা হচ্ছে…');
   try{
     const response=await fetch('/api/workflows/instant-legal-draft',{
       method:'POST',headers:{'content-type':'application/json'},
       credentials:'same-origin',cache:'no-store',signal:controller.signal,
-      body:JSON.stringify({draftTypeId:type.id,document:type.en,purpose,details,outputLanguage:el('ds-output-language').value})
+      body:JSON.stringify({draftTypeId:type.id,document:type.en,purpose,details,outputLanguage:submittedLanguage})
     });
     const result=await response.json();
     if(!response.ok || !result.ok)throw new Error(result.message||'Draft generation unavailable');
     if(!result.answer||result.answer.trim().length<15)throw new Error('No usable draft was generated');
-    state.generated=true;state.incomplete=Boolean(result.incomplete);
+    if(!el('ds-result'))return; // User navigated away while the AI was working.
+    const currentSignature=JSON.stringify([state.selected,el('ds-purpose').value.trim(),el('ds-incident').value.trim(),el('ds-output-language').value]);
+    if(currentSignature!==submittedSignature){setStatus('ইনপুট বদলেছে। নতুন তথ্য অনুযায়ী Generate করুন।','warning');return;}
+    state.generated=true;state.generatedType=type.id;
+    state.generatedLanguage=submittedLanguage==='auto'
+      ? (/[\u0980-\u09ff]/u.test(result.answer)?'bn':'en') : submittedLanguage;
+    state.incomplete=Boolean(result.incomplete);
     el('ds-result').hidden=false;
     el('ds-document-title').textContent=type.en+' · '+type.bn;
     el('ds-document-profile').textContent=DRAFT_FORMAT_PROFILES[type.profile].page+' · Editable';
@@ -177,13 +214,15 @@ function zipStore(entries){
 }
 export function buildDraftDocx(title,text,profile,lang='bn'){
   const conf=DRAFT_FORMAT_PROFILES[profile]||DRAFT_FORMAT_PROFILES.standard;
-  const size=lang==='en'?conf.enPt:conf.bnPt;
+  const effectiveLanguage=lang==='auto'?(/[\u0980-\u09ff]/u.test(text)?'bn':'en'):lang;
+  const size=effectiveLanguage==='en'?conf.enPt:conf.bnPt;
+  const margin=Math.round(conf.marginMm*1440/25.4); // twips per 25.4 mm (one inch)
   const p=text.replace(/\r\n?/g,'\n').split('\n').map(line=>
     '<w:p><w:pPr><w:spacing w:line="'+Math.round(conf.spacing*240)+'" w:lineRule="auto"/></w:pPr>'+
-    '<w:r><w:rPr><w:rFonts w:ascii="'+xmlEscape(conf.enFont)+'" w:hAnsi="'+xmlEscape(conf.enFont)+'" w:eastAsia="'+xmlEscape(conf.bnFont)+'"/>'+
-    '<w:sz w:val="'+(size*2)+'"/></w:rPr><w:t xml:space="preserve">'+xmlEscape(line)+'</w:t></w:r></w:p>').join('');
+    '<w:r><w:rPr><w:rFonts w:ascii="'+xmlEscape(conf.enFont)+'" w:hAnsi="'+xmlEscape(conf.enFont)+'" w:eastAsia="'+xmlEscape(conf.bnFont)+'" w:cs="'+xmlEscape(effectiveLanguage==='en'?conf.enFont:conf.bnFont)+'"/>'+
+    '<w:sz w:val="'+(size*2)+'"/><w:szCs w:val="'+(size*2)+'"/></w:rPr><w:t xml:space="preserve">'+xmlEscape(line)+'</w:t></w:r></w:p>').join('');
   const body='<w:p><w:r><w:t>'+xmlEscape('DRAFT — REVIEW BEFORE USE: '+title)+'</w:t></w:r></w:p>'+p+
-    '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>';
+    '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="'+margin+'" w:right="'+margin+'" w:bottom="'+margin+'" w:left="'+margin+'"/></w:sectPr>';
   const doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'</w:body></w:document>';
   return zipStore([
@@ -197,30 +236,39 @@ function downloadBlob(blob,name){
   document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
 }
 function exportDraft(type){
+  if(!state.generated || state.generatedType!==state.selected){
+    setStatus('এই Draft Type-এর জন্য নতুন ডকুমেন্ট Generate করুন; আগের draft export করা যাবে না।','warning');
+    return;
+  }
   const text=el('ds-draft-text')?.value.trim();
   if(!text){setStatus('আগে একটি draft তৈরি করুন।','error');return;}
   if(state.incomplete && !window.confirm('AI উত্তর অসম্পূর্ণ হতে পারে। নিজে যাচাই করে তবেই Export করবেন। চালিয়ে যাবেন?'))return;
-  const kind=byId(state.selected),name='LexGlobalBD-'+kind.id;
+  const kind=byId(state.generatedType),name='LexGlobalBD-'+kind.id;
   if(type==='copy'){navigator.clipboard.writeText(text).then(()=>setStatus('Text copied.','success')).catch(()=>setStatus('Copy unavailable; select the text manually.','error'));return;}
   if(type==='txt'){downloadBlob(new Blob(['DRAFT — REVIEW BEFORE USE\n\n'+text],{type:'text/plain;charset=utf-8'}),name+'.txt');return;}
-  if(type==='docx'){downloadBlob(buildDraftDocx(kind.en,text,kind.profile,el('ds-output-language').value),name+'.docx');return;}
+  if(type==='docx'){downloadBlob(buildDraftDocx(kind.en,text,kind.profile,state.generatedLanguage),name+'.docx');return;}
   if(type==='pdf'){syncPreview();window.print();}
 }
 export function bindDraftingStudio(){
   const root=el('draft-studio');if(!root)return;
-  state.category='all';state.search='';state.selected='legal-notice';state.busy=false;state.generated=false;state.incomplete=false;
+  state.category='all';state.search='';state.selected='legal-notice';state.busy=false;state.generated=false;state.generatedType=null;state.generatedLanguage='bn';state.incomplete=false;
   renderCatalog();
   root.addEventListener('click',event=>{
     const cat=event.target.closest('[data-category]');
     if(cat){state.category=cat.dataset.category;renderCatalog();return;}
     const draft=event.target.closest('[data-draft-id]');
     if(draft){
+      if(state.busy)return;
+      if(state.selected!==draft.dataset.draftId)invalidateGeneratedDraft();
       state.selected=draft.dataset.draftId;renderCatalog();
       el('ds-create').scrollIntoView({behavior:'smooth',block:'start'});
     }
   });
   el('ds-search').addEventListener('input',event=>{state.search=event.target.value.trim();renderCatalog();});
+  el('ds-purpose').addEventListener('input',invalidateGeneratedDraft);
+  el('ds-output-language').addEventListener('change',invalidateGeneratedDraft);
   el('ds-incident').addEventListener('input',event=>{
+    invalidateGeneratedDraft();
     el('ds-chars').textContent=event.target.value.length+' / 2600';
     el('ds-detected').textContent='Detected: '+detectIncidentLanguage(event.target.value);
   });
@@ -228,7 +276,7 @@ export function bindDraftingStudio(){
   el('ds-reset').addEventListener('click',()=>{
     if(el('ds-incident').value && !window.confirm('বর্তমান ঘটনার বিবরণ মুছে ফেলবেন?'))return;
     el('ds-purpose').value='';el('ds-incident').value='';el('ds-output-language').value='auto';
-    el('ds-result').hidden=true;el('ds-status').hidden=true;state.generated=false;state.incomplete=false;
+    el('ds-result').hidden=true;el('ds-status').hidden=true;state.generated=false;state.generatedType=null;state.incomplete=false;
     el('ds-chars').textContent='0 / 2600';el('ds-detected').textContent='Language: Auto';
   });
   el('ds-draft-text').addEventListener('input',syncPreview);
