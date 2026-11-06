@@ -90,6 +90,14 @@ export const DRAFT_TYPES = [
     "review": false
   },
   {
+    "id": "village-court-application",
+    "en": "Village Court Application",
+    "bn": "গ্রাম আদালতে আবেদন",
+    "category": "civil",
+    "profile": "court",
+    "review": true
+  },
+  {
     "id": "complaint-letter",
     "en": "Complaint Letter",
     "bn": "অভিযোগপত্র",

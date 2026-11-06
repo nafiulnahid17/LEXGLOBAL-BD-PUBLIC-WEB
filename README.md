@@ -139,3 +139,19 @@ Automated tests cover all 78 draft types, 9 categories, safeguards, editable DOC
 The Cloudflare Workers AI prompt now requests a formal, respectful document structure: document title, appropriate parties, place/date, subject, facts, requested relief/terms and signature block. A small **AI can make mistakes** reminder is shown **beneath** the editable document in the app, not inside the paper. The DOCX and TXT exports no longer prepend **DRAFT — REVIEW BEFORE USE**. Word formatting applies centered/bold headings, emphasized subjects and justified body paragraphs. Print-to-PDF excludes UI reminders.
 
 Draft inputs are neither persisted to the application's own database nor included in export footers, but **the sender, receiver, addresses and location are sent to Cloudflare Workers AI for generation**. Do not use confidential third-party case details or identity numbers until consent, privacy and retention policies are confirmed. The draft may require manual correction and is not guaranteed suitable for court filing.
+
+
+### Official-style Bangladesh drafting format correction (November 7, 2026)
+
+- The General Diary (GD) application now has a dedicated **Officer-in-Charge / police-station application** structure (date, addressee, subject, formal salutation, user-supplied incident, requested action and applicant signature). A **Village Court application** is a distinct option (addressed to the relevant Union Parishad Chairperson, subject to actual jurisdiction). They MUST NOT be conflated; other general applications and legal notices also have separate formal structures.
+- Application headers, subjects, sender/recipient and signatures are assembled from supplied fields by **server-side document-specific formatting**, rather than trusting a model to translate generic labels. Unknown names, places and dates remain clear placeholders. The AI is instructed to rewrite the **incident narrative only** for these formats; malformed AI replies with full letter headings trigger a safe fallback to supplied facts (or an error if Banglish translation cannot be verified).
+- The frontend also removes markdown heading/bold markers from generated previews, so **`**পাঠানো হয়েছে**`**, **`**গ্রহণ করা হয়েছে**`**, and chat-style markup cannot be mistaken for proper application fields. For contracts, deeds, affidavits and court petitions the prompting follows distinct document classes rather than one generic application style.
+- No statutes, deadlines, court names, police jurisdiction, deeds or case numbers are invented by deterministic templates. These outputs remain **editable sample drafts**, not a police receipt, official Village Court form, court-ready pleading, registered deed, or legal opinion. Review with the intended receiving authority and qualified legal counsel.
+
+Sources checked for document structure:
+- Bangladesh Police Citizen Charter — GD is made in person or online through the police station: https://www.police.gov.bd/index.php/en/citizen_charter
+- Government information on Village Court application structure and the Union Parishad Chairperson as addressee: https://dss.sadar.madaripur.gov.bd/pages/static-pages/6995691035ce18e1c07787be
+- Government application sample showing address, subject, salutation, main statement and applicant signature: https://teachers.gov.bd/blog/details/851147
+- Land Administration Manual requiring prescribed mutation/application forms: https://bhumipedia.land.gov.bd/ebook/view/216
+
+Verification: `npm test` includes screenshot-regression scenarios, correct authority selection, markdown cleanup, formal Bengali/English output, Banglish translation fail-closed, and end-to-end Worker mock. Passing software tests does **not** certify acceptance by Bangladesh police, courts or registries.
