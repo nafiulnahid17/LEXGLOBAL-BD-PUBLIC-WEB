@@ -142,3 +142,32 @@ test('missing native AI binding still returns configuration failure, not fake le
   assert.equal(res.status,503);
   assert.equal(j.code,'AI_BINDING_NOT_CONFIGURED');
 });
+
+
+test('screenshot trial: uppercase Banglish parties become structured Bengali GD through one Cloudflare call',async()=>{
+  let calls=0;
+  const incident='ami rajshahi te amar mobile phone haraychi ami thanay gd korte chai';
+  const response=await worker.fetch(post(body({
+    details:incident,senderName:'TORIKUL',
+    receiverName:'RAJSHAHI POLICE STATION',
+    location:'RAJSHAHI',outputLanguage:'bn'
+  })),env(async(_model,payload)=>{
+    calls++;
+    assert.equal(payload.chat_template_kwargs.enable_thinking,false);
+    return {choices:[{finish_reason:'stop',message:{content:JSON.stringify({
+      narrative:'রাজশাহী এলাকায় আমার ব্যবহৃত মোবাইল ফোনটি হারিয়ে গেছে। বিষয়টি সংশ্লিষ্ট থানায় সাধারণ ডায়েরিতে লিপিবদ্ধ করার জন্য আবেদন করছি।',
+      subject:'মোবাইল ফোন হারিয়ে যাওয়ার বিষয়ে সাধারণ ডায়েরির আবেদন',
+      names:{senderName:'তরিকুল',receiverName:'রাজশাহী পুলিশ স্টেশন',location:'রাজশাহী'}
+    })}}]};
+  }));
+  const j=await response.json();
+  assert.equal(response.status,200,JSON.stringify(j));
+  assert.equal(calls,1);
+  assert.equal(j.mode,'preview_ai');
+  assert.equal(j.modelRecovered,false);
+  assert.match(j.answer,/বরাবর\nঅফিসার ইনচার্জ\nরাজশাহী পুলিশ স্টেশন/);
+  assert.match(j.answer,/বিষয়: মোবাইল ফোন হারিয়ে যাওয়ার বিষয়ে সাধারণ ডায়েরির আবেদন/);
+  assert.match(j.answer,/বিনীত নিবেদক\nনাম: তরিকুল/);
+  assert.match(j.answer,/রাজশাহী এলাকায় আমার ব্যবহৃত মোবাইল ফোনটি হারিয়ে গেছে/);
+  assert.doesNotMatch(j.answer,/TORIKUL|RAJSHAHI POLICE STATION|[\*]{2}/);
+});
