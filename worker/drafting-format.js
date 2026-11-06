@@ -14,7 +14,7 @@ export function kindOf(type){
 }
 export function cleanText(raw){
   const tick=String.fromCharCode(96);
-  const cleaned=String(raw||'').normalize('NFC').replace(/\r\n?/g,'\n')
+  const cleaned=String(raw||'').replace(/\r\n?/g,'\n')
     .replace(/<think>[\s\S]*?<\/think>/giu,'')
     .replace(new RegExp('^\\s*'+tick+'{3}[^\\n]*$','gm'),'')
     .replace(/\*\*([^*]+)\*\*/gs,'$1').replace(/__([^_]+)__/gs,'$1')

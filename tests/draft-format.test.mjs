@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {getDraftType,DRAFT_TYPES} from '../site/drafting-catalog.js';
-import {draftKind,cleanText,formatDirective,formatDraft} from '../worker/drafting-format.js';
+import {kindOf as draftKind,cleanText,formatDirective,formatDraft} from '../worker/drafting-format.js';
 import {detectResponseLanguage} from '../worker/index.js';
 import worker from '../worker/index.js';
 

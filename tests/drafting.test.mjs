@@ -53,8 +53,8 @@ test('selected type, Bengali output and review-safe instructions reach native Wo
   assert.equal(result.verified,false);
   assert.equal(result.stored,false);
   assert.match(captured.messages[0].content,/Legal Notice/);
-  assert.match(captured.messages[0].content,/complete document in formal, clear Bengali/i);
-  assert.match(captured.messages[0].content,/Never fabricate courts/i);
+  assert.match(captured.messages[0].content,/Output in professional Bengali script/i);
+  assert.match(captured.messages[0].content,/Never fabricate a police report/i);
   assert.ok(captured.max_tokens>=2000);
 });
 
@@ -66,7 +66,7 @@ test('full English incident and outputLanguage en override draft language',async
     outputLanguage:'en'
   }),env({AI:{run:async(_m,p)=>{prompt=p.messages[0].content;return {response:'SAMPLE NDA: Parties [To verify], date [To verify].'};}}}));
   assert.equal(response.status,200);
-  assert.match(prompt,/only in professional English/);
+  assert.match(prompt,/Output in professional English only/);
   assert.match(prompt,/Non-Disclosure Agreement/);
 });
 
@@ -79,7 +79,7 @@ test('auto language rule instructs Banglish to be rendered in Bangla script',asy
     outputLanguage:'auto'
   }),env({AI:{run:async(_m,p)=>{prompt=p.messages[0].content;return {response:'নমুনা দলিলের বিষয়। রেজিস্ট্রি অফিসের অনুমোদিত ফরম যাচাই করুন।'};}}}));
   assert.equal(response.status,200);
-  assert.match(prompt,/Banglish -> formal Bengali script/);
+  assert.match(prompt,/Bengali or Banglish incident -> formal Bengali/);
   assert.match(prompt,/registration/i);
 });
 
@@ -222,9 +222,9 @@ test('party and location fields reach native Workers AI as user-supplied data',a
     assert.ok(latest.includes(expected),expected);
   }
   const policy=payload.messages[0].content;
-  assert.match(policy,/professionally formatted legal DOCUMENT BODY/);
-  assert.match(policy,/UI shows cautions separately BELOW the paper/);
-  assert.match(policy,/formal and respectful drafting style/);
+  assert.match(policy,/NARRATIVE ONLY/);
+  assert.match(policy,/Keep any legal uncertainty note OUTSIDE the generated document/);
+  assert.match(policy,/source title=Legal Notice/);
 });
 
 test('malformed or oversized party/location fields are rejected before inference',async()=>{

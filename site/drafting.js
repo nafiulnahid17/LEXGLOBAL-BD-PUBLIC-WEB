@@ -172,7 +172,7 @@ function inputSignature(type,purpose,details,language,parties){
 }
 // Remove ONLY distinct trailing AI disclaimers, not substantive clauses or placeholders.
 export function cleanDraftDocument(raw){
-  let text=String(raw||'').normalize('NFC').trim().replace(/\r\n?/g,'\n')
+  let text=String(raw||'').trim().replace(/\r\n?/g,'\n')
     .replace(/<think>[\s\S]*?<\/think>/giu,'')
     .replace(/\*\*([^*]+)\*\*/gs,'$1').replace(/__([^_]+)__/gs,'$1')
     .replace(/^\s*#{1,6}\s+/gm,'').replace(/^\s*>\s?/gm,'')
