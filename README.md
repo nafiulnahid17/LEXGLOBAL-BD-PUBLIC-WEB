@@ -130,3 +130,12 @@ Tests: `npm test` covers the catalog, server-side validation, language routing, 
 The generated document is now tied to its selected draft type and output language. Changing the document type, incident, purpose or output language invalidates a stale preview and requires regeneration, preventing a Legal Notice from being incorrectly downloaded as a Bail Petition. Category-specific **preparation hints** help users supply context without making unsupported legal-filing claims; high-risk court and registry types display an explicit lawyer-review warning. Word (.docx) exports now use configured page-profile margins and Bengali complex-script font settings, and auto output-language selection respects generated document script. Browser print remains Save-as-PDF, not a certified court filing format.
 
 Automated tests cover all 78 draft types, 9 categories, safeguards, editable DOCX structure, formatting profiles and stale-draft prevention. These are software tests and do not establish legal sufficiency or court acceptance.
+
+
+### Instant Legal Drafting — professional parties and paper-only document output (7 November 2026)
+
+**Sender / Applicant**, **Receiver / Addressee**, both addresses, **Location / District / Thana** and optional **Document Date** are editable inputs on the existing drafting page. The AI receives only provided values; missing details must remain placeholders, never invented names or addresses. High-risk court or registry documents still require authority-specific formatting and qualified legal review.
+
+The Cloudflare Workers AI prompt now requests a formal, respectful document structure: document title, appropriate parties, place/date, subject, facts, requested relief/terms and signature block. A small **AI can make mistakes** reminder is shown **beneath** the editable document in the app, not inside the paper. The DOCX and TXT exports no longer prepend **DRAFT — REVIEW BEFORE USE**. Word formatting applies centered/bold headings, emphasized subjects and justified body paragraphs. Print-to-PDF excludes UI reminders.
+
+Draft inputs are neither persisted to the application's own database nor included in export footers, but **the sender, receiver, addresses and location are sent to Cloudflare Workers AI for generation**. Do not use confidential third-party case details or identity numbers until consent, privacy and retention policies are confirmed. The draft may require manual correction and is not guaranteed suitable for court filing.
