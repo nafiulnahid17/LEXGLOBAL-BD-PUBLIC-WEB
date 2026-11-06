@@ -256,3 +256,14 @@ test('trailing model disclaimer is removed while important factual placeholders 
   assert.match(cleaned,/বিষয়: নথিপত্র চেয়ে আবেদন/);
   assert.doesNotMatch(cleaned,/AI can make mistakes/);
 });
+
+
+test('drafting UI puts incident before parties and collapses optional data and full catalog',()=>{
+  const html=draftingWorkspace();
+  assert.match(html,/class="ds-library-wrapper"/);
+  assert.match(html,/class="ds-extra-fields"/);
+  assert.ok(html.indexOf('id="ds-incident"')<html.indexOf('id="ds-sender-name"'));
+  assert.ok(html.indexOf('id="ds-sender-name"')<html.indexOf('id="ds-sender-address"'));
+  assert.match(html,/টিপস: কেবল প্রকৃত ঘটনা লিখুন/);
+  assert.match(html,/ঠিকানা, তারিখ ও উদ্দেশ্য/);
+});
