@@ -240,7 +240,7 @@ test('malformed or oversized party/location fields are rejected before inference
 
 test('DOCX export has professional title, subject and paragraphs but no AI warning watermark',async()=>{
   const text='LEGAL NOTICE\nTo: ABC Limited\nSubject: Request for records\nThe recipient is requested to review these records.';
-  const zip=readZipEntries(await buildDraftDocx('Legal Notice',text,'standard','en').then(blob=>blob.arrayBuffer()));
+  const zip=readZipEntries(await buildDraftDocx('Legal Notice',text,'standard','en').arrayBuffer());
   const xml=zip.get('word/document.xml');
   assert.match(xml,/w:jc w:val="center"/);
   assert.match(xml,/w:b\//);
