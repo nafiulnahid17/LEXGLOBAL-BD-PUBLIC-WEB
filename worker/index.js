@@ -1,5 +1,5 @@
 import { getDraftType } from '../site/drafting-catalog.js';
-import {formatDraft,formatDirective,draftTypeMismatch} from './drafting-format.js';
+import {formatDraft,formatDirective,draftTypeMismatch,kindOf} from './drafting-format.js';
 /**
  * LexGlobal BD For Public — Cloudflare Workers AI backend.
  * No identity docs, file contents, or conversation text are persisted.
@@ -14,7 +14,9 @@ export const FEATURES = [
   'emergency-sos-gesture','emergency-call'
 ];
 
-const MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+// The old Qwen 3 30B model is scheduled for Cloudflare deprecation on 2026-11-15.
+// Cloudflare recommends Gemma 4 as a lightweight alternative; AI_MODEL can override.
+const MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const MAX_BODY = 24_576;
 const NO_STORE_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -249,16 +251,64 @@ function modelPayload(slug, query, sources, preview=false, history=[], languageR
     stream:preview && streaming
   };
 }
-function extractAnswer(result) {
-  const text = result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.response ?? result?.result?.choices?.[0]?.message?.content;
-  return typeof text === 'string' ? text.trim() : '';
+export function extractAnswer(result) {
+  // Only use actual assistant message text, never hidden reasoning or metadata.
+  const options=[result?.response,result?.choices?.[0]?.message?.content,
+    result?.choices?.[0]?.text,result?.result?.response,
+    result?.result?.choices?.[0]?.message?.content,result?.output_text,
+    result?.output?.[0]?.content];
+  for(const item of options){
+    if(typeof item==='string'&&item.trim())return item.trim();
+    if(Array.isArray(item)){
+      const joined=item.map(part=>typeof part==='string'?part:
+        (part?.type==='text'||part?.type==='output_text')?part.text||part.content:'')
+        .filter(v=>typeof v==='string').join('');
+      if(joined.trim())return joined.trim();
+    }
+  }
+  return '';
 }
-async function runAI(env, payload) {
-  // Inference is ONLY through Cloudflare's native Workers AI binding.
-  // No REST requests, bearer tokens, account IDs or gateway routing are supported.
-  if (!env.AI || typeof env.AI.run !== 'function') throw new Error('AI_BINDING_NOT_CONFIGURED');
-  const model = env.AI_MODEL || MODEL;
-  return withDeadline(env.AI.run(model, payload), payload.max_tokens>2000 ? 38_000 : 20_000);
+function incompleteDraft(text,finishReason){
+  const value=String(text||'').trim();
+  if(value.length<24||value.length>14000)return true;
+  if(['length','max_tokens','token_limit'].includes(finishReason))return true;
+  // Truncated structured responses must never appear verbatim inside a legal paper.
+  const tick=String.fromCharCode(96);
+  const source=value.startsWith(tick)?
+    value.replace(new RegExp('^'+tick+'{3}(?:json)?\\s*','i'),'')
+      .replace(new RegExp('\\s*'+tick+'{3}$'),'').trim():value;
+  if(source.startsWith('{')){
+    try{
+      const obj=JSON.parse(source);
+      if(!obj||typeof obj.narrative!=='string'||obj.narrative.trim().length<18)return true;
+    }catch{return true;}
+  }
+  return false;
+}
+function retryDraftPayload(input,type){
+  const lang=input.outputLanguage==='bn'?'Write only in formal Bengali script.':
+    input.outputLanguage==='en'?'Write only in formal English.':
+    'Bangla/Banglish incident: formal Bengali script. English incident: English.';
+  const parts=['details','purpose','senderName','senderAddress','receiverName','receiverAddress','location','documentDate']
+    .map(key=>typeof input[key]==='string'&&input[key].trim()?key+': '+input[key].slice(0,2600):'')
+    .filter(Boolean).join('\n');
+  return {
+    messages:[
+      {role:'system',content:'Create an editable Bangladesh-style draft NARRATIVE (not an official filing). '+lang+
+        ' For a citizen application or notice output ONLY 2–4 complete factual sentences in plain text.'+
+        ' No JSON, headings, signatures, citations, assumptions, fabricated facts, deadlines, promises or AI notes.'},
+      {role:'user',content:'Draft type: '+type.en+' / '+type.bn+'\n'+parts}
+    ],
+    max_tokens:1100,temperature:0.1,top_p:0.8,stream:false
+  };
+}
+async function runAI(env,payload,timeoutMs) {
+  if(!env.AI||typeof env.AI.run!=='function')throw new Error('AI_BINDING_NOT_CONFIGURED');
+  const model=env.AI_MODEL||MODEL;
+  const options=model==='@cf/google/gemma-4-26b-a4b-it'
+    ? {...payload,chat_template_kwargs:{enable_thinking:false}} : payload;
+  return withDeadline(env.AI.run(model,options),
+    timeoutMs??(payload.max_tokens>2000?38_000:20_000));
 }
 function cleanPreviewAnswer(text) {
   // No source index means no reference markers may be presented as verified citations.
