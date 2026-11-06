@@ -27,8 +27,14 @@ export function cleanText(raw){
 }
 function outputLanguage(data,detect){
   if(data.outputLanguage==='bn'||data.outputLanguage==='en')return data.outputLanguage;
+  const words=(String(data.details||'').toLowerCase().match(/[a-z]+/g)||[]);
+  // Short colloquial Banglish often falls below the generic chatbot heuristic.
+  // Keep detection conservative so ordinary English remains English.
+  const romanBangla=new Set(['ami','amar','amader','tumi','tomar','apni','apnar','korte','korbo','kori','korse','korche','chai','chay','chaitesi','kase','kache','jinish','haraychi','hariye','gese','geche','ase','ache','jomi','dokhol','mamla','thana','shathe','sathe','jonno','eita','eta','ki','kivabe','bujhi','nai','bolen']);
+  const matches=words.filter(word=>romanBangla.has(word));
+  const distinctive=words.some(word=>['ami','amar','amader','korte','chai','haraychi','jomi','dokhol','bujhi','kase'].includes(word));
   const detected=detect(String(data.details||''));
-  if(detected==='bn'||detected==='bn-Latn'||/[\u0980-\u09FF]/u.test(data.details||''))return 'bn';
+  if(detected==='bn'||detected==='bn-Latn'||(matches.length>=2&&distinctive)||/[\u0980-\u09FF]/u.test(data.details||''))return 'bn';
   if(/[a-z]/i.test(data.details||''))return 'en';
   return 'other';
 }
