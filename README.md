@@ -108,3 +108,18 @@ The AI Legal Assistant keeps the same Messenger-style interface while improving 
 - Long Bangla assistant history is compacted with both its opening context and closing conclusion, rather than keeping only the first 1800 characters.
 - Streaming now treats a long sentence lacking an ending as potentially incomplete even if a provider reports `stop`. Existing bounded auto-continuation and manual `উত্তর চালিয়ে যান` controls remain available.
 - Regression tests cover context continuity and SSE termination without `[DONE]`. AI inference remains via native Cloudflare Workers binding, without REST tokens or login.
+
+## Instant Legal Drafting Studio (v6)
+
+The Public `/public/instant-legal-draft` route now contains a full bilingual drafting catalog (9 categories, 78 selectable document types, 8 featured draft cards), searchable selection, incident intake, auto/Bengali/English output choice, editable AI preview, and Copy, TXT, downloadable DOCX, plus Print/Save-to-PDF actions.
+
+- Native Cloudflare Workers AI binding only; no external engine or API key, and no login.
+- One authoritative draft registry shared between browser and Worker. Unknown `draftTypeId` values and missing incident descriptions are rejected.
+- User-supplied incident text may be written in Bengali, English, Banglish or another language. Auto mode asks the multilingual model to match its language; Banglish should produce formal Bengali. Explicit output-language choice overrides auto detection.
+- Draft profiles are **editable software defaults**, not universally mandatory Bangladesh filing specifications: A4, 25.4-mm margins, Bengali 14 pt, English 12 pt, 1.5 line spacing. Court and registry documents must follow the specific authority's latest requirements, which may differ (including foolscap forms, stamps, oath/affidavit and annexures).
+- Every output is an **unverified SAMPLE**, not ready for filing. The model is told to avoid invented facts, names, court rules, case law, legal sections and deadlines, and use placeholders for missing specifics. Court, criminal, family, land/property and higher-court documents need qualified legal review before use.
+- DOCX export is generated locally in the browser using a minimal OOXML ZIP. Print/Save PDF opens the browser print workflow. No PDF API or third-party export provider is used.
+- Sensitive identity information and actual case files are discouraged. This UI does not save forms to a database, but entered incident text is sent to the Cloudflare Worker and Workers AI provider for generation. Review Cloudflare data-handling and local law before receiving real client records.
+- The other ten Public feature routes and existing AI Legal Assistant are preserved.
+
+Tests: `npm test` covers the catalog, server-side validation, language routing, the draft prompt, and Word XML packaging. Live Workers AI factual accuracy, source indexing, and court-format acceptance **are not guaranteed by automated tests**.
