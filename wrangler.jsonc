@@ -26,6 +26,7 @@
   ],
   "vars": {
     "LEGAL_SEARCH_INSTANCE": "",
-    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it",
+    "VERCEL_AI_MODEL": "google/gemini-2.5-flash"
   }
 }

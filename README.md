@@ -177,3 +177,20 @@ Draft generation now detects empty, truncated, malformed JSON and too-short mode
 Featured cards now focus on everyday citizen-facing drafts: general application, GD application, complaint letter, right-to-information application, consumer complaint, certificate application, Village Court application and refund/return notice. Other drafts remain available in the searchable library with risk/review caveats. Citizens may draft or seek assistance with more complex documents; the shortlist is a convenience, not a declaration of legal permissions. Official filing systems and prescribed forms must still be used where applicable.
 
 Official resources: Bangladesh GRS https://grs.gov.bd/ ; Right to Information forms https://infocom.gov.bd/pages/forms ; Cloudflare migration notice https://developers.cloudflare.com/changelog/post/2026-11-05-planned-model-deprecations/ ; Gemma 4 model docs https://developers.cloudflare.com/ai/models/%40cf/google/gemma-4-26b-a4b-it/ .
+
+
+### Vercel AI Gateway (primary) + Cloudflare Workers AI (backup)
+
+Primary model: google/gemini-2.5-flash via https://ai-gateway.vercel.sh/v1/chat/completions (OpenAI-compatible API).
+Fallback model: @cf/google/gemma-4-26b-a4b-it via native Cloudflare env.AI.run binding.
+
+**Key setup:**
+1. Create a **Vercel AI Gateway API key** in Vercel AI Gateway settings (not a Google API key). Ensure credits/billing and model availability.
+2. In Cloudflare Dashboard, open the deployed Worker → Settings → Variables and Secrets → Add Secret. Set the exact secret name **AI_GATEWAY_API_KEY** to the Vercel AI Gateway key. Alternatively, in the correct Wrangler project run: npx wrangler secret put AI_GATEWAY_API_KEY.
+3. Deploy main to Cloudflare. In Wrangler variables, **VERCEL_AI_MODEL=google/gemini-2.5-flash** (already configured) and **AI_MODEL=@cf/google/gemma-4-26b-a4b-it** (Cloudflare backup). Never place AI_GATEWAY_API_KEY in a vars JSON, frontend file, commit, or chat.
+4. GET /api/health should show vercelGatewayConfigured:true if the secret is loaded, and cloudflareFallbackConfigured:true if the native AI binding is present.
+5. Test a Bangla/Banglish legal draft and a streaming legal chat on the deployed Worker after you set the secret. GitHub CI covers mocked routing, not live provider credentials.
+
+If no Gateway key is configured, Cloudflare runs immediately. If a Gateway request fails or returns unusable data, the Worker falls back to Cloudflare; first-response SSE is passed through as OpenAI-compatible data. When an SSE connection fails after streaming begins, browser-side continuation is used instead of silently restarting and duplicating a partially delivered answer. The Worker does not persist inputs, but **Vercel and model providers receive the text you submit** and have their own retention policies. Both systems may incur usage charges.
+
+References: https://vercel.com/docs/ai-gateway/sdks-and-apis and https://vercel.com/docs/ai-gateway/authentication-and-byok and https://vercel.com/ai-gateway/models/gemini-2.5-flash

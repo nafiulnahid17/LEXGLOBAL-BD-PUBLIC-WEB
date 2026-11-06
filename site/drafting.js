@@ -24,7 +24,7 @@ export function draftingWorkspace() {
       '<div id="ds-categories" class="ds-categories" aria-label="Draft categories"></div>',
       '<div id="ds-types" class="ds-cards"></div></section></details>',
       '<section class="ds-section ds-create" id="ds-create"><div class="ds-heading"><div><small>CREATE YOUR DRAFT</small>',
-      '<h3>Write Your Incident</h3></div><span class="ds-tag">Cloudflare AI · Preview</span></div>',
+      '<h3>Write Your Incident</h3></div><span class="ds-tag">AI Drafting · Gateway / Cloudflare</span></div>',
       '<div class="ds-selected"><span class="ds-selected-symbol">✍</span><div><small>Selected Document</small>',
       '<strong id="ds-selected-name">Legal Notice</strong><span id="ds-selected-bn"></span></div>',
       '<span class="ds-profile-pill" id="ds-profile-pill">A4 working draft</span></div>',
@@ -137,7 +137,7 @@ function setStatus(message,kind='info'){
 }
 function setBusy(busy){
   state.busy=busy;const node=el('ds-generate');
-  node.disabled=busy;node.textContent=busy?'Generating with Cloudflare AI…':'✦ Generate Draft →';
+  node.disabled=busy;node.textContent=busy?'Generating AI Draft…':'✦ Generate Draft →';
 }
 function syncPreview(){
   const printable=el('ds-print-only'),editor=el('ds-draft-text');
