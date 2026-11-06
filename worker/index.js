@@ -1,5 +1,5 @@
 import { getDraftType } from '../site/drafting-catalog.js';
-import {formatDraft,formatDirective,draftTypeMismatch} from './drafting-format.js';
+import {formatDraft,formatDirective,draftTypeMismatch,kindOf} from './drafting-format.js';
 /**
  * LexGlobal BD For Public — Cloudflare Workers AI backend.
  * No identity docs, file contents, or conversation text are persisted.
@@ -14,7 +14,9 @@ export const FEATURES = [
   'emergency-sos-gesture','emergency-call'
 ];
 
-const MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+// The old Qwen 3 30B model is scheduled for Cloudflare deprecation on 2026-11-15.
+// Cloudflare recommends Gemma 4 as a lightweight alternative; AI_MODEL can override.
+const MODEL = '@cf/google/gemma-4-26b-a4b-it';
 const MAX_BODY = 24_576;
 const NO_STORE_HEADERS = {
   'content-type': 'application/json; charset=utf-8',
@@ -249,16 +251,64 @@ function modelPayload(slug, query, sources, preview=false, history=[], languageR
     stream:preview && streaming
   };
 }
-function extractAnswer(result) {
-  const text = result?.response ?? result?.choices?.[0]?.message?.content ?? result?.result?.response ?? result?.result?.choices?.[0]?.message?.content;
-  return typeof text === 'string' ? text.trim() : '';
+export function extractAnswer(result) {
+  // Only use actual assistant message text, never hidden reasoning or metadata.
+  const options=[result?.response,result?.choices?.[0]?.message?.content,
+    result?.choices?.[0]?.text,result?.result?.response,
+    result?.result?.choices?.[0]?.message?.content,result?.output_text,
+    result?.output?.[0]?.content];
+  for(const item of options){
+    if(typeof item==='string'&&item.trim())return item.trim();
+    if(Array.isArray(item)){
+      const joined=item.map(part=>typeof part==='string'?part:
+        (part?.type==='text'||part?.type==='output_text')?part.text||part.content:'')
+        .filter(v=>typeof v==='string').join('');
+      if(joined.trim())return joined.trim();
+    }
+  }
+  return '';
 }
-async function runAI(env, payload) {
-  // Inference is ONLY through Cloudflare's native Workers AI binding.
-  // No REST requests, bearer tokens, account IDs or gateway routing are supported.
-  if (!env.AI || typeof env.AI.run !== 'function') throw new Error('AI_BINDING_NOT_CONFIGURED');
-  const model = env.AI_MODEL || MODEL;
-  return withDeadline(env.AI.run(model, payload), payload.max_tokens>2000 ? 38_000 : 20_000);
+function incompleteDraft(text,finishReason){
+  const value=String(text||'').trim();
+  if(value.length<24||value.length>14000)return true;
+  if(['length','max_tokens','token_limit'].includes(finishReason))return true;
+  // Truncated structured responses must never appear verbatim inside a legal paper.
+  const tick=String.fromCharCode(96);
+  const source=value.startsWith(tick)?
+    value.replace(new RegExp('^'+tick+'{3}(?:json)?\\s*','i'),'')
+      .replace(new RegExp('\\s*'+tick+'{3}$'),'').trim():value;
+  if(source.startsWith('{')){
+    try{
+      const obj=JSON.parse(source);
+      if(!obj||typeof obj.narrative!=='string'||obj.narrative.trim().length<18)return true;
+    }catch{return true;}
+  }
+  return false;
+}
+function retryDraftPayload(input,type){
+  const lang=input.outputLanguage==='bn'?'Write only in formal Bengali script.':
+    input.outputLanguage==='en'?'Write only in formal English.':
+    'Bangla/Banglish incident: formal Bengali script. English incident: English.';
+  const parts=['details','purpose','senderName','senderAddress','receiverName','receiverAddress','location','documentDate']
+    .map(key=>typeof input[key]==='string'&&input[key].trim()?key+': '+input[key].slice(0,2600):'')
+    .filter(Boolean).join('\n');
+  return {
+    messages:[
+      {role:'system',content:'Create an editable Bangladesh-style draft NARRATIVE (not an official filing). '+lang+
+        ' For a citizen application or notice output ONLY 2–4 complete factual sentences in plain text.'+
+        ' No JSON, headings, signatures, citations, assumptions, fabricated facts, deadlines, promises or AI notes.'},
+      {role:'user',content:'Draft type: '+type.en+' / '+type.bn+'\n'+parts}
+    ],
+    max_tokens:1100,temperature:0.1,top_p:0.8,stream:false
+  };
+}
+async function runAI(env,payload,timeoutMs) {
+  if(!env.AI||typeof env.AI.run!=='function')throw new Error('AI_BINDING_NOT_CONFIGURED');
+  const model=env.AI_MODEL||MODEL;
+  const options=model==='@cf/google/gemma-4-26b-a4b-it'
+    ? {...payload,chat_template_kwargs:{enable_thinking:false}} : payload;
+  return withDeadline(env.AI.run(model,options),
+    timeoutMs??(payload.max_tokens>2000?38_000:20_000));
 }
 function cleanPreviewAnswer(text) {
   // No source index means no reference markers may be presented as verified citations.
@@ -305,25 +355,60 @@ async function handleLegal(slug, input, env) {
   const languageRule=replyLanguageInstruction(input) +
     (slug==='instant-legal-draft' ? draftingRule(input,getDraftType(input.draftTypeId)) : '');
   let result;
-  try {result=await runAI(env,modelPayload(slug,query,sources,preview,history,languageRule,streaming,continuation));}
-  catch {return fail('AI_TEMPORARILY_UNAVAILABLE','Cloudflare AI এখন উত্তর দিতে পারছে না। একটু পরে চেষ্টা করুন।',503);}
+  try {result=await runAI(env,modelPayload(slug,query,sources,preview,history,languageRule,streaming,continuation),slug==='instant-legal-draft'?27_000:undefined);}
+  catch {
+    // A transient failure while drafting should still receive one bounded retry.
+    if(slug==='instant-legal-draft'&&draftType)result={response:''};
+    else return fail('AI_TEMPORARILY_UNAVAILABLE','Cloudflare AI এখন উত্তর দিতে পারছে না। একটু পরে চেষ্টা করুন।',503);
+  }
   // In preview chat, send Cloudflare's SSE stream to the browser for lower time-to-first-text.
   // JSON remains the default for legacy clients and all source-grounded responses.
   if (streaming && typeof result?.getReader==='function') {
     return new Response(result,{status:200,headers:{...NO_STORE_HEADERS,'content-type':'text/event-stream; charset=utf-8','x-content-type-options':'nosniff'}});
   }
   let answer=extractAnswer(result).replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
-  const finishReason=result?.choices?.[0]?.finish_reason??result?.finish_reason??null;
-  const incomplete=['length','max_tokens','token_limit'].includes(finishReason) ||
-    (finishReason===null && answer.length>90 && !/[.!?।॥…]\s*$/u.test(answer));
-  if (!answer || answer.length>(slug==='instant-legal-draft'?14000:6500)) return fail('INVALID_AI_OUTPUT','AI থেকে ব্যবহারযোগ্য উত্তর পাওয়া যায়নি। আবার চেষ্টা করুন।',502);
-  if(slug==='instant-legal-draft' && draftType){
+  let finishReason=result?.choices?.[0]?.finish_reason??result?.finish_reason??null;
+  let modelRecovered=false,templateFallback=false;
+  if(slug==='instant-legal-draft' && draftType && incompleteDraft(answer,finishReason)){
+    // Retry only empty/truncated/malformed AI outputs, using a smaller plain-text prompt.
+    // No token or REST API; still the same native Cloudflare Workers AI binding.
     try {
-      answer=formatDraft(draftType,input,answer,detectResponseLanguage);
-    } catch {
-      return fail('DRAFT_FORMAT_UNVERIFIED','নির্ভরযোগ্য আনুষ্ঠানিক খসড়া তৈরি করা যায়নি। বিবরণ ও ভাষা যাচাই করে আবার চেষ্টা করুন।',422);
+      const next=await runAI(env,retryDraftPayload(input,draftType),13_000);
+      const recovered=extractAnswer(next).replace(/<think>[\s\S]*?<\/think>/gi,'').trim();
+      const nextFinish=next?.choices?.[0]?.finish_reason??next?.finish_reason??null;
+      if(!incompleteDraft(recovered,nextFinish)){
+        answer=recovered;finishReason=nextFinish;modelRecovered=true;
+      } else {answer='';finishReason=nextFinish;}
+    } catch {answer='';}
+  }
+  let incomplete=['length','max_tokens','token_limit'].includes(finishReason) ||
+    (finishReason===null && answer.length>90 && !/[.!?।॥…}\]]\s*$/u.test(answer));
+  if(slug==='instant-legal-draft'&&draftType){
+    if(!answer){
+      // If both AI attempts fail, produce an honest editable template ONLY when
+      // the incident was supplied in readable Bengali or English. Banglish must
+      // be translated by a functioning model; never fake translated legal facts.
+      const eligible=['gd','application','village','notice'].includes(kindOf(draftType)) &&
+        (input.outputLanguage==='en' ? !/[\u0980-\u09FF]/u.test(input.details) :
+          /[\u0980-\u09FF]/u.test(input.details));
+      if(eligible) {
+        try {
+          answer=formatDraft(draftType,input,input.details,detectResponseLanguage);
+          templateFallback=true;incomplete=false;
+        } catch {/* leave a clear AI availability error */}
+      }
+      if(!templateFallback)return fail('AI_DRAFT_UNAVAILABLE',
+        'AI সম্পূর্ণ ড্রাফট তৈরি করতে পারেনি। আবার চেষ্টা করুন। বাংলিশে লিখে থাকলে বাংলা অক্ষরে ঘটনাটি লিখেও চেষ্টা করতে পারেন।',503);
+    } else {
+      try {answer=formatDraft(draftType,input,answer,detectResponseLanguage);}
+      catch {
+        return fail('DRAFT_FORMAT_UNVERIFIED',
+          'আনুষ্ঠানিক খসড়া নির্ভরযোগ্যভাবে তৈরি হয়নি। ভাষা ও ঘটনা যাচাই করে পুনরায় চেষ্টা করুন।',422);
+      }
     }
-    if(answer.length>14000)return fail('INVALID_AI_OUTPUT','ড্রাফটটি অতিরিক্ত বড়; বিবরণ সংক্ষিপ্ত করে আবার চেষ্টা করুন।',422);
+    if(answer.length>14000)return fail('INVALID_AI_OUTPUT','ড্রাফট অতিরিক্ত বড়। সংক্ষিপ্ত করে আবার চেষ্টা করুন।',422);
+  } else if(!answer||answer.length>6500) {
+    return fail('INVALID_AI_OUTPUT','AI থেকে ব্যবহারযোগ্য উত্তর পাওয়া যায়নি। আবার চেষ্টা করুন।',502);
   }
   if (!preview && !validatedAnswer(answer,sources.length)) {
     // Do not label unsupported citations as verified. Offer preview instead of a dead end.
@@ -331,7 +416,7 @@ async function handleLegal(slug, input, env) {
       sources:[],sourceStatus:'model_citations_unverified',incomplete,
       disclaimer:'⚠️ এটি পরীক্ষামূলক AI উত্তর; কোনো উদ্ধৃতি বা আইনি দাবি যাচাই করা হয়নি। আদালত, চুক্তি বা সরকারি কাজে ব্যবহারের আগে সংশ্লিষ্ট মূল আইন ও আইনজীবীর মাধ্যমে যাচাই করুন।',stored:false});
   }
-  if (preview) return reply({ok:true,mode:'preview_ai',verified:false,answer:cleanPreviewAnswer(answer),sources:[],sourceStatus,incomplete,
+  if (preview) return reply({ok:true,mode:templateFallback?'template_fallback':'preview_ai',verified:false,answer:cleanPreviewAnswer(answer),sources:[],sourceStatus,incomplete,modelRecovered,
     disclaimer:'⚠️ পরীক্ষামূলক AI উত্তর (যাচাইকৃত আইনি উৎস ছাড়া)। আইনের ধারা, ফি, সময়সীমা বা মামলার বিষয়ে সিদ্ধান্ত নেওয়ার আগে সরকারি উৎস বা আইনজীবীর মাধ্যমে যাচাই করুন।',stored:false});
   return reply({ok:true,mode:'grounded_ai',verified:true,answer,
     sources:sources.map(({title,url,updatedAt})=>({title,url,updatedAt})),sourceStatus,

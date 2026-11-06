@@ -698,7 +698,8 @@ export const DRAFT_TYPES = [
     "review": false
   }
 ];
-export const FEATURED_DRAFT_IDS = ["legal-notice","gd-application","civil-plaint","bail-petition","divorce-notice","land-sale-deed","business-agreement","affidavit"];
+// Frequently used citizen-facing drafts only. Other types remain searchable with review guidance.
+export const FEATURED_DRAFT_IDS = ["general-application","gd-application","complaint-letter","right-to-information","consumer-complaint","certificate-application","village-court-application","refund-notice"];
 export const DRAFT_FORMAT_PROFILES = {
   "standard": {
     "page": "A4",

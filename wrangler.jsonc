@@ -26,6 +26,6 @@
   ],
   "vars": {
     "LEGAL_SEARCH_INSTANCE": "",
-    "AI_MODEL": "@cf/qwen/qwen3-30b-a3b-fp8"
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
   }
 }
