@@ -155,3 +155,14 @@ Sources checked for document structure:
 - Land Administration Manual requiring prescribed mutation/application forms: https://bhumipedia.land.gov.bd/ebook/view/216
 
 Verification: `npm test` includes screenshot-regression scenarios, correct authority selection, markdown cleanup, formal Bengali/English output, Banglish translation fail-closed, and end-to-end Worker mock. Passing software tests does **not** certify acceptance by Bangladesh police, courts or registries.
+
+
+### Compact drafting UX + narrative quality update (7 Nov 2026)
+
+The Instant Legal Drafting form now prioritizes **the actual incident description**, followed by applicant/recipient names, location and output language. Sender/receiver addresses, date and specific remedy are available under **More details (optional)**; format guidance and the 79-item library are collapsed by default. All existing fields remain and no user information is retained by the app's own database.
+
+For applications and legal notices, a single native Workers AI invocation now requests a structured narrative (factual prose rather than filler headers), a concise specific subject, and optional Bengali phonetic spellings of user-supplied Latin names/locations. The server assembles a shorter conventional Bangladesh paper without redundant place, repeated sender metadata or duplicated subject lines. The fallback preserves original names rather than inventing a spelling; users must verify legal spelling before use.
+
+If **Legal Notice** is selected with a police-station addressee or an explicit GD request, the backend returns `DRAFT_TYPE_MISMATCH` with a suggestion to choose **GD Application**, instead of creating the wrong kind of paper. The UI offers a switch to the suggested type.
+
+These are editable sample documents, not legal advice or filing-ready papers. An authentic authority-specific official form or qualified lawyer's review takes precedence. Test coverage includes compact form markup, old JSON / plain-text outputs, correct subject/metadata, and GD vs notice mismatch detection.
