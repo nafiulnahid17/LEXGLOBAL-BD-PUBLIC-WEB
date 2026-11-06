@@ -172,9 +172,16 @@ function inputSignature(type,purpose,details,language,parties){
 }
 // Remove ONLY distinct trailing AI disclaimers, not substantive clauses or placeholders.
 export function cleanDraftDocument(raw){
-  const paragraphs=String(raw||'').trim().replace(/\r\n?/g,'\n').split(/\n\s*\n/);
-  const disclaimer=/^(?:\*{0,2})?(?:Disclaimer|Important note|AI can make mistakes|AI-generated|This is (?:an? )?(?:AI|sample) draft|Please (?:verify|consult)|দ্রষ্টব্য\s*[:：]|সতর্কতা\s*[:：]|এই খসড়া এআই[-\s]?(?:প্রস্তুত|তৈরি)|এটি এআই[-\s]?(?:প্রস্তুত|তৈরি)|আইনি পরামর্শ নয়)[\s\S]*$/iu;
-  while(paragraphs.length>1&&disclaimer.test(paragraphs[paragraphs.length-1].trim()))paragraphs.pop();
+  let text=String(raw||'').normalize('NFC').trim().replace(/\r\n?/g,'\n')
+    .replace(/<think>[\s\S]*?<\/think>/giu,'')
+    .replace(/\*\*([^*]+)\*\*/gs,'$1').replace(/__([^_]+)__/gs,'$1')
+    .replace(/^\s*#{1,6}\s+/gm,'').replace(/^\s*>\s?/gm,'')
+    .replace(/\n{3,}/g,'\n\n');
+  const fence=String.fromCharCode(96);
+  text=text.replace(new RegExp('^\\s*'+fence+'{3}[^\\n]*$','gm'),'').trim();
+  const paragraphs=text.split(/\n\s*\n/);
+  const disclaimer=/^(?:Disclaimer\b|AI can make mistakes|Important note\b|AI-generated\b|Please (?:verify|consult)\b|দ্রষ্টব্য\s*[:：]|সতর্কতা\s*[:：]|আইনি পরামর্শ নয়)[\s\S]*$/iu;
+  while(paragraphs.length>1 && disclaimer.test(paragraphs[paragraphs.length-1].trim()))paragraphs.pop();
   return paragraphs.join('\n\n').trim();
 }
 async function generateDraft(){
