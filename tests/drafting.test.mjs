@@ -190,7 +190,7 @@ test('selecting a new drafting type invalidates older generated output instead o
     ensure('draft-studio').listeners.click({target});
     assert.equal(ensure('ds-result').hidden,true,'stale draft preview must disappear');
     assert.equal(ensure('ds-selected-name').textContent,'Bail Petition');
-    assert.match(ensure('ds-status').textContent,/নতুন ডকুমেন্ট Generate/);
+    assert.match(ensure('ds-status').textContent,/নতুন Draft তৈরি করুন/);
   } finally {
     if(originalDocument===undefined) delete globalThis.document; else globalThis.document=originalDocument;
     if(originalWindow===undefined) delete globalThis.window; else globalThis.window=originalWindow;
