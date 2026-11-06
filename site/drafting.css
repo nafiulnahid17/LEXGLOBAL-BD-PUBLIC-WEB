@@ -43,6 +43,16 @@
 .ds-selected strong{font-size:16px}
 .ds-profile-pill{font-size:11px;border-radius:8px;padding:8px;color:#ddc093;background:#6f553238;white-space:nowrap}
 .ds-fields{display:flex;flex-direction:column;gap:11px}
+.ds-parties{border:1px solid #496a86;border-radius:13px;padding:16px;margin:2px 0 9px;min-width:0;background:#09223b}
+.ds-parties legend{color:#eed5a1;font-size:13px;font-weight:750;padding:0 8px}
+.ds-fields-note{color:#9dbad4;font-size:11px;margin:0 0 14px;line-height:1.6}
+.ds-party-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.ds-party-group{display:flex;flex-direction:column;gap:8px}
+.ds-party-group h4{color:#f1cf97;margin:0 0 3px;font-size:12px;font-weight:700}
+.ds-party-group label,.ds-location-grid label{color:#e0edfa;font-size:12px;font-weight:650}
+.ds-location-grid{margin-top:13px}
+.ds-location-grid>div{display:flex;flex-direction:column;gap:7px}
+.ds-ai-disclaimer{margin:10px 4px 0;color:#9ab1c7;font-size:11px;line-height:1.6;text-align:center}
 .ds-fields>label{font-size:13px;font-weight:650;color:#e2effc}
 .ds-fields>label span{font-size:10px;color:#859bad;font-weight:400}
 .ds-fields>label b{color:#f0c47e}
@@ -79,7 +89,7 @@
 .ds-export button:hover{border-color:#f0c17a;color:#ffdc97}
 .ds-print-only{display:none}
 @media(max-width:1120px){.ds-featured,.ds-cards{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:740px){.ds-hero{padding:22px 17px;flex-direction:column;align-items:flex-start}.ds-total{font-size:16px;text-align:left;padding:10px 14px}.ds-total small{display:inline;margin-left:10px}
+@media(max-width:740px){.ds-party-grid{grid-template-columns:1fr;gap:12px}.ds-parties{padding:13px}.ds-hero{padding:22px 17px;flex-direction:column;align-items:flex-start}.ds-total{font-size:16px;text-align:left;padding:10px 14px}.ds-total small{display:inline;margin-left:10px}
 .ds-steps{padding:10px;gap:4px}.ds-steps span{font-size:10px;gap:4px}.ds-steps b{width:23px;height:23px;flex-shrink:0}.ds-section{padding:20px 14px}
 .ds-heading h3{font-size:19px}.ds-featured,.ds-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .ds-featured-card{padding:11px}.ds-featured-card strong{font-size:12px}.ds-cards{max-height:320px}
