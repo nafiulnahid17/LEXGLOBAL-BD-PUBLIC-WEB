@@ -22,8 +22,8 @@ test('GD screenshot regression: fabricated translated sender/receiver headings n
   assert.match(draft,/বিষয়: সাধারণ ডায়েরিতে ঘটনা লিপিবদ্ধকরণের আবেদন/);
   assert.match(draft,/মহোদয়,/);
   assert.match(draft,/বিনীত নিবেদন এই যে/);
-  assert.match(draft,/ঘটনার বিবরণ:\nচাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
-  assert.match(draft,/অতএব, উল্লিখিত ঘটনাটি সাধারণ ডায়েরিতে লিপিবদ্ধ/);
+  assert.match(draft,/বিনীত নিবেদন এই যে, চাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
+  assert.match(draft,/অতএব, ঘটনাটি সাধারণ ডায়েরিতে লিপিবদ্ধ/);
   assert.match(draft,/বিনীত নিবেদক\nনাম: রাইহান/);
   assert.doesNotMatch(draft,/পাঠানো\s+হ[য়য়]েছে|গ্রহণ\s+করা\s+হ[য়য়]েছে|\*\*|গ্রাম ডিভিশন আবেদন/u);
 });
@@ -66,7 +66,7 @@ test('English application remains formal English and does not switch to Bengali'
     'I lost a personal item near a railway station and want this incident to be recorded.',detectResponseLanguage);
   assert.match(result,/To\nOfficer-in-Charge\nSadar Police Station/);
   assert.match(result,/Subject: Request to Record a General Diary/);
-  assert.match(result,/Statement of facts:/);
+  assert.match(result,/I respectfully submit that/);
   assert.match(result,/Signature: /);
   assert.doesNotMatch(result,/বরাবর|বিনীত নিবেদক/);
 });
@@ -118,9 +118,9 @@ test('native Workers AI API returns completed GD paper after malformed model dra
   assert.equal(response.status,200,JSON.stringify(json));
   assert.equal(json.ok,true);
   assert.match(json.answer,/বরাবর\nঅফিসার ইনচার্জ/);
-  assert.match(json.answer,/ঘটনার বিবরণ:\nচাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
+  assert.match(json.answer,/বিনীত নিবেদন এই যে, চাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
   assert.doesNotMatch(json.answer,/পাঠানো\s+হ[য়য়]েছে|\*\*/);
-  assert.match(modelPrompt,/NARRATIVE ONLY/);
+  assert.match(modelPrompt,/Return ONLY JSON/);
 });
 
 test('missing language translation fails safely rather than issuing a formal-looking mixed-language paper',async()=>{

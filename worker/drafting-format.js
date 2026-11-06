@@ -107,7 +107,7 @@ function letter(type,data,parts,lang,notice){
       'তারিখ: '+date,'প্রাপক: '+receiver+addressLine,'বিষয়: '+title+'।','মহোদয়,',
       'আপনার অবগতির জন্য জানানো যাচ্ছে যে, '+parts.body,
       'উল্লিখিত বিষয়ে প্রয়োজনীয় পদক্ষেপ ও লিখিত জবাব প্রদানের অনুরোধ জানাচ্ছি।',
-      'বিনীত,\n'+sender+'\nঠিকানা: '+addr+'\nস্বাক্ষর: __________________'
+      'প্রেরক: '+sender+'\nঠিকানা: '+addr+'\nস্বাক্ষর: __________________'
     ].join('\n\n');
     const authority=gd?'অফিসার ইনচার্জ\n':village?'চেয়ারম্যান\n':'';
     const prayer=gd?'অতএব, ঘটনাটি সাধারণ ডায়েরিতে লিপিবদ্ধ করে প্রয়োজনীয় আইনানুগ ব্যবস্থা গ্রহণের জন্য বিনীত আবেদন জানাচ্ছি।':
@@ -116,7 +116,7 @@ function letter(type,data,parts,lang,notice){
     return [
       'তারিখ: '+date,'বরাবর\n'+authority+receiver+addressLine,'বিষয়: '+title+'।',
       'মহোদয়,','বিনীত নিবেদন এই যে, '+parts.body,prayer,
-      'বিনীত নিবেদক\n'+sender+'\nঠিকানা: '+addr+'\nস্বাক্ষর: __________________'
+      'বিনীত নিবেদক\nনাম: '+sender+'\nঠিকানা: '+addr+'\nস্বাক্ষর: __________________'
     ].join('\n\n');
   }
   if(notice)return [
