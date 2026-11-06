@@ -166,3 +166,14 @@ For applications and legal notices, a single native Workers AI invocation now re
 If **Legal Notice** is selected with a police-station addressee or an explicit GD request, the backend returns `DRAFT_TYPE_MISMATCH` with a suggestion to choose **GD Application**, instead of creating the wrong kind of paper. The UI offers a switch to the suggested type.
 
 These are editable sample documents, not legal advice or filing-ready papers. An authentic authority-specific official form or qualified lawyer's review takes precedence. Test coverage includes compact form markup, old JSON / plain-text outputs, correct subject/metadata, and GD vs notice mismatch detection.
+
+
+### Workers AI drafting recovery & citizen-friendly featured cards (2026-11-07)
+
+The runtime `AI_MODEL` setting in `wrangler.jsonc` has been moved off Cloudflare's scheduled-for-deprecation `@cf/qwen/qwen3-30b-a3b-fp8` to `@cf/google/gemma-4-26b-a4b-it`, which Cloudflare advertises as a faster low-compute multilingual replacement. The Cloudflare-native `env.AI.run()` binding is unchanged; the supported Gemma example uses `chat_template_kwargs.enable_thinking=false` to prioritize actual output rather than empty reasoning. A dashboard-level variable may override Wrangler and must be checked at deployment.
+
+Draft generation now detects empty, truncated, malformed JSON and too-short model output, and attempts at most ONE short native AI retry. Model responses are extracted from known text envelopes, excluding reasoning. If both tries fail, ordinary English or Bengali user facts can populate an explicit `template_fallback` working document (NOT presented as a successful AI draft). Latin-script Banglish is never silently passed off as official Bengali; a clear retry/translate instruction appears instead. All legal assertions, identity names and legal procedures remain unverified until reviewed.
+
+Featured cards now focus on everyday citizen-facing drafts: general application, GD application, complaint letter, right-to-information application, consumer complaint, certificate application, Village Court application and refund/return notice. Other drafts remain available in the searchable library with risk/review caveats. Citizens may draft or seek assistance with more complex documents; the shortlist is a convenience, not a declaration of legal permissions. Official filing systems and prescribed forms must still be used where applicable.
+
+Official resources: Bangladesh GRS https://grs.gov.bd/ ; Right to Information forms https://infocom.gov.bd/pages/forms ; Cloudflare migration notice https://developers.cloudflare.com/changelog/post/2026-11-05-planned-model-deprecations/ ; Gemma 4 model docs https://developers.cloudflare.com/ai/models/%40cf/google/gemma-4-26b-a4b-it/ .

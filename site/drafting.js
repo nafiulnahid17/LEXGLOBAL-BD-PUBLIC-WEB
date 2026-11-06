@@ -216,9 +216,10 @@ async function generateDraft(){
     el('ds-document-title').textContent=type.en+' · '+type.bn;
     el('ds-document-profile').textContent=DRAFT_FORMAT_PROFILES[type.profile].page+' · Editable';
     el('ds-draft-text').value=cleanedDraft;
-    el('ds-preview-status').textContent=result.mode==='grounded_ai'?'Source-linked · Lawyer Review':'AI Preview · Unverified';
+    el('ds-preview-status').textContent=result.mode==='template_fallback'?'আপনার তথ্যভিত্তিক খসড়া · AI সংশোধন প্রয়োজন':result.mode==='grounded_ai'?'Source-linked · Lawyer Review':'AI Preview · Unverified';
     syncPreview();renderSources(result.sources);
-    if(state.incomplete)setStatus('⚠ AI উত্তর অসম্পূর্ণ হতে পারে। Draft সম্পাদনা করুন এবং পুনরায় generate বা আইনজীবীর সঙ্গে যাচাই করুন।','warning');
+    if(result.mode==='template_fallback')setStatus('AI সম্পূর্ণ উত্তর দেয়নি। শুধু আপনার দেওয়া তথ্য দিয়ে নমুনা খসড়া তৈরি করা হয়েছে। প্রয়োজনীয় তথ্য ও ভাষা সম্পাদনা করে যাচাই করুন।','warning');
+    else if(state.incomplete)setStatus('⚠ AI উত্তর অসম্পূর্ণ হতে পারে। Draft সম্পাদনা করুন এবং পুনরায় generate বা আইনজীবীর সঙ্গে যাচাই করুন।','warning');
     else if(state.generatedLanguage==='bn' && /[a-z]/i.test([parties.senderName,parties.receiverName,parties.senderAddress,parties.receiverAddress,parties.location].join(' ')) && /[a-z]/i.test(cleanedDraft))setStatus('বাংলা খসড়ায় ইংরেজি অক্ষরে নাম বা ঠিকানা রয়ে গেছে। ব্যবহারের আগে সঠিক বাংলা বানান সম্পাদনা করুন।','warning');
     else setStatus('খসড়া তৈরি হয়েছে। সম্পাদনা, কপি এবং Export করতে পারবেন।','success');
     el('ds-result').scrollIntoView({behavior:'smooth',block:'start'});

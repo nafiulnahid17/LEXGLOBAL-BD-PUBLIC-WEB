@@ -356,7 +356,11 @@ async function handleLegal(slug, input, env) {
     (slug==='instant-legal-draft' ? draftingRule(input,getDraftType(input.draftTypeId)) : '');
   let result;
   try {result=await runAI(env,modelPayload(slug,query,sources,preview,history,languageRule,streaming,continuation),slug==='instant-legal-draft'?27_000:undefined);}
-  catch {return fail('AI_TEMPORARILY_UNAVAILABLE','Cloudflare AI এখন উত্তর দিতে পারছে না। একটু পরে চেষ্টা করুন।',503);}
+  catch {
+    // A transient failure while drafting should still receive one bounded retry.
+    if(slug==='instant-legal-draft'&&draftType)result={response:''};
+    else return fail('AI_TEMPORARILY_UNAVAILABLE','Cloudflare AI এখন উত্তর দিতে পারছে না। একটু পরে চেষ্টা করুন।',503);
+  }
   // In preview chat, send Cloudflare's SSE stream to the browser for lower time-to-first-text.
   // JSON remains the default for legacy clients and all source-grounded responses.
   if (streaming && typeof result?.getReader==='function') {
