@@ -169,10 +169,15 @@ test('native env.AI.run is the only model invocation interface',async()=>{
   assert.equal(optionsSeen,undefined);
 });
 
-test('worker source has no REST or token fallback implementation',async()=>{
-  const source=await readFile(new URL('../worker/index.js',import.meta.url),'utf8');
-  assert.doesNotMatch(source,/api\.cloudflare\.com|Bearer |CF_AI_USE_REST|CF_AI_API_TOKEN|CF_ACCOUNT_ID|AI_GATEWAY_ID/);
-  assert.match(source,/env\.AI\.run\(model,\s*options\)/);
+test('gateway key is server-only and Cloudflare fallback retains native AI binding',async()=>{
+  const backend=await readFile(new URL('../worker/ai-router.js',import.meta.url),'utf8');
+  const worker=await readFile(new URL('../worker/index.js',import.meta.url),'utf8');
+  const frontend=await readFile(new URL('../site/app.js',import.meta.url),'utf8');
+  assert.match(backend,/ai-gateway\.vercel\.sh\/v1\/chat\/completions/);
+  assert.match(backend,/env\.AI\.run\(model,p\)/);
+  assert.doesNotMatch(backend,/api\.cloudflare\.com|CF_AI_USE_REST|CF_AI_API_TOKEN|CF_ACCOUNT_ID/);
+  assert.doesNotMatch(frontend,/AI_GATEWAY_API_KEY|Bearer /);
+  assert.doesNotMatch(worker,/AI_GATEWAY_API_KEY/);
 });
 
 test('static site requests delegate to asset binding',async()=>{
@@ -222,10 +227,11 @@ test('non-chat workflows reject supplied conversation state and do not impersona
   assert.equal(response.status,422);assert.equal(response.json.code,'INVALID_HISTORY');
 });
 
-test('chat remains stateless without server storage or API keys',async()=>{
+test('chat remains stateless; gateway token stays in server-only router',async()=>{
   const source=await readFile(new URL('../worker/index.js',import.meta.url),'utf8');
+  const router=await readFile(new URL('../worker/ai-router.js',import.meta.url),'utf8');
   assert.match(source,/parseConversationHistory\(slug,input\)/);
-  assert.match(source,/env\.AI\.run\(model,\s*options\)/);
+  assert.match(router,/env\.AI\.run\(model,p\)/);
   assert.doesNotMatch(source,/localStorage|api\.cloudflare\.com\/client\/v4|Bearer /);
 });
 
