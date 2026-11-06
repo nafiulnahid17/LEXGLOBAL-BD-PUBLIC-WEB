@@ -43,7 +43,7 @@ function subject(type,data,lang){
 }
 function narrative(answer,data,lang){
   const draft=cleanText(answer);
-  const bad=/^\s*(?:বরাবর|বিষয়\s*[:：]|বিষয়\s*[:：]|মহোদয়|মহোদয়|বিনীত নিবেদক|অতএব|পাঠানো\s+হয়েছে|গ্রহণ\s+করা\s+হয়েছে|To\s*:|Subject\s*:|Dear\s+Sir|Yours\s+(?:faithfully|sincerely)|Sender\s*:|Receiver\s*:)/imu;
+  const bad=/^\s*(?:বরাবর|বিষয়\s*[:：]|বিষয়\s*[:：]|মহোদয়|মহোদয়|বিনীত নিবেদক|অতএব|পাঠানো\s+হ[য়য়]েছে|গ্রহণ\s+করা\s+হ[য়য়]েছে|To\s*:|Subject\s*:|Dear\s+Sir|Yours\s+(?:faithfully|sincerely)|Sender\s*:|Receiver\s*:)/imu;
   const meta=/AI can make mistakes|I'm an AI|নমুনা ড্রাফট|Sample Draft\s*:/imu;
   const body=(!draft||draft.length<18||bad.test(draft)||meta.test(draft))?cleanText(data.details):draft;
   if(lang==='bn'&&!/[\u0980-\u09FF]/u.test(body))throw new Error('DRAFT_TRANSLATION_UNVERIFIED');
