@@ -35,7 +35,7 @@ test('drafting UI exposes accessible featured cards, searchable library, inciden
     'ds-generate','ds-draft-text','ds-copy','ds-docx','ds-txt','ds-pdf','ds-print-only']){
       assert.match(html,new RegExp('id="'+id+'"'));
     }
-  assert.match(html,/Auto — match incident language/);
+  assert.match(html,/Auto — বাংলা \/ Banglish/);
   assert.match(html,/Word/);
   assert.match(html,/PDF/);
 });
@@ -222,8 +222,8 @@ test('party and location fields reach native Workers AI as user-supplied data',a
     assert.ok(latest.includes(expected),expected);
   }
   const policy=payload.messages[0].content;
-  assert.match(policy,/NARRATIVE ONLY/);
-  assert.match(policy,/Keep any legal uncertainty note OUTSIDE the generated document/);
+  assert.match(policy,/Return ONLY JSON/);
+  assert.match(policy,/Keep any legal uncertainty note OUTSIDE the document/);
   assert.match(policy,/source title=Legal Notice/);
 });
 
@@ -255,4 +255,15 @@ test('trailing model disclaimer is removed while important factual placeholders 
   assert.match(cleaned,/প্রেরক: \[যাচাই প্রয়োজন\]/);
   assert.match(cleaned,/বিষয়: নথিপত্র চেয়ে আবেদন/);
   assert.doesNotMatch(cleaned,/AI can make mistakes/);
+});
+
+
+test('drafting UI puts incident before parties and collapses optional data and full catalog',()=>{
+  const html=draftingWorkspace();
+  assert.match(html,/class="ds-library-wrapper"/);
+  assert.match(html,/class="ds-extra-fields"/);
+  assert.ok(html.indexOf('id="ds-incident"')<html.indexOf('id="ds-sender-name"'));
+  assert.ok(html.indexOf('id="ds-sender-name"')<html.indexOf('id="ds-sender-address"'));
+  assert.match(html,/টিপস: কেবল প্রকৃত ঘটনা লিখুন/);
+  assert.match(html,/ঠিকানা, তারিখ ও উদ্দেশ্য/);
 });

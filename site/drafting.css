@@ -105,3 +105,36 @@
   #ds-print-only{display:block!important;position:absolute!important;top:0;left:0;right:0;white-space:pre-wrap!important;
     font-family:'Noto Serif Bengali','Times New Roman',serif!important;font-size:14pt;line-height:1.5;color:#000!important}
 }
+
+
+/* Compact drafting form: the incident leads, less metadata is shown by default. */
+.ds-library-wrapper{margin:12px 24px 2px;border:1px solid rgba(220,182,108,.34);border-radius:14px;background:#102a45;overflow:hidden}
+.ds-library-wrapper>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:12px;align-items:center;padding:15px 19px;color:#f7dcad;font-weight:750;font-size:13px}
+.ds-library-wrapper>summary::-webkit-details-marker{display:none}
+.ds-library-wrapper>summary:after{content:'⌄';font-size:18px;color:#f1c477}
+.ds-library-wrapper[open]>summary:after{transform:rotate(180deg)}
+.ds-library-wrapper>summary small{font-size:11px;color:#b5cddd;font-weight:400}
+.ds-library-wrapper .ds-section{padding:16px 20px 22px}
+.ds-create{border-top:1px solid #405d76}
+.ds-incident-tip{margin:0;color:#afc6d8;font-size:11px;line-height:1.6}
+.ds-primary-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.ds-primary-meta>div{display:flex;flex-direction:column;gap:7px}
+.ds-primary-meta label,.ds-extra-grid label{color:#e0edfa;font-weight:650;font-size:12px}
+.ds-primary-meta>div:last-child{grid-column:1/-1}
+.ds-extra-fields,.ds-format-details{border:1px solid #365c79;border-radius:12px;background:#0b2540;padding:0;overflow:hidden}
+.ds-extra-fields summary,.ds-format-details summary{cursor:pointer;color:#f5d5a0;font-size:13px;font-weight:700;padding:13px 15px;line-height:1.6}
+.ds-extra-fields summary small{color:#98bdd5;font-size:11px;font-weight:400}
+.ds-extra-fields[open] summary,.ds-format-details[open] summary{border-bottom:1px solid #365c79}
+.ds-extra-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:15px}
+.ds-extra-grid>div{display:flex;flex-direction:column;gap:7px}
+.ds-extra-grid textarea{min-height:75px;resize:vertical}
+.ds-format-details .ds-format-note,.ds-format-details .ds-preparation-hints,.ds-format-details .ds-review-note{margin:10px 13px}
+.ds-warning{font-size:11px;padding:9px 12px}
+.ds-status .ds-switch-type{margin:10px 0 0;background:#f3cf87;border:0;border-radius:9px;padding:8px 12px;color:#09223c;cursor:pointer;font-weight:750}
+@media(max-width:740px){
+ .ds-library-wrapper{margin:12px 13px 2px}
+ .ds-library-wrapper>summary{padding:13px;font-size:12px;flex-wrap:wrap}
+ .ds-primary-meta,.ds-extra-grid{grid-template-columns:1fr}
+ .ds-primary-meta>div:last-child{grid-column:auto}
+ .ds-section{padding:18px 15px}
+}

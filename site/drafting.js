@@ -17,42 +17,43 @@ export function draftingWorkspace() {
       '<div class="ds-steps"><span><b>01</b> Draft Type</span><span><b>02</b> Incident</span><span><b>03</b> Generate & Export</span></div>',
       '<section class="ds-section"><div class="ds-heading"><div><small>QUICK START</small><h3>Featured Drafting</h3></div><span>Popular templates</span></div>',
       '<div id="ds-featured" class="ds-featured"></div></section>',
+      '<details class="ds-library-wrapper" id="ds-library"><summary>সব Drafting Type দেখুন <small>Search & Filter · '+ DRAFT_TYPES.length +' options</small></summary>',
       '<section class="ds-section"><div class="ds-heading"><div><small>DOCUMENT LIBRARY</small><h3>All Drafting Types</h3></div>',
       '<span id="ds-count"></span></div><div class="ds-search-wrap"><label class="visually-hidden" for="ds-search">Search draft types</label>',
       '<input id="ds-search" type="search" placeholder="Search drafting types / খসড়া খুঁজুন" autocomplete="off"></div>',
       '<div id="ds-categories" class="ds-categories" aria-label="Draft categories"></div>',
-      '<div id="ds-types" class="ds-cards"></div></section>',
+      '<div id="ds-types" class="ds-cards"></div></section></details>',
       '<section class="ds-section ds-create" id="ds-create"><div class="ds-heading"><div><small>CREATE YOUR DRAFT</small>',
       '<h3>Write Your Incident</h3></div><span class="ds-tag">Cloudflare AI · Preview</span></div>',
       '<div class="ds-selected"><span class="ds-selected-symbol">✍</span><div><small>Selected Document</small>',
       '<strong id="ds-selected-name">Legal Notice</strong><span id="ds-selected-bn"></span></div>',
       '<span class="ds-profile-pill" id="ds-profile-pill">A4 working draft</span></div>',
       '<div class="ds-fields">',
-      '<fieldset class="ds-parties"><legend>Document Parties & Place · পক্ষ ও স্থান</legend>',
-      '<p class="ds-fields-note">যতটুকু তথ্য জানা আছে দিন। ফাঁকা থাকলে AI খসড়ায় [যাচাই প্রয়োজন] placeholder রাখবে।</p>',
-      '<div class="ds-party-grid">',
-      '<div class="ds-party-group"><h4>Sender / Applicant · প্রেরক / আবেদনকারী</h4>',
-      '<label for="ds-sender-name">Name / নাম</label><input id="ds-sender-name" maxlength="160" autocomplete="off" placeholder="Sender / Applicant name">',
-      '<label for="ds-sender-address">Address / ঠিকানা</label><textarea id="ds-sender-address" rows="2" maxlength="320" placeholder="Sender address (optional)"></textarea></div>',
-      '<div class="ds-party-group"><h4>Receiver / Addressee · প্রাপক / অপর পক্ষ</h4>',
-      '<label for="ds-receiver-name">Name / Office / নাম</label><input id="ds-receiver-name" maxlength="160" autocomplete="off" placeholder="Receiver / Authority name">',
-      '<label for="ds-receiver-address">Address / ঠিকানা</label><textarea id="ds-receiver-address" rows="2" maxlength="320" placeholder="Receiver address (optional)"></textarea></div>',
-      '</div><div class="ds-party-grid ds-location-grid">',
-      '<div><label for="ds-location">Location / District / Thana · স্থান</label><input id="ds-location" maxlength="160" autocomplete="off" placeholder="City, district or relevant location"></div>',
-      '<div><label for="ds-document-date">Document Date / তারিখ (optional)</label><input id="ds-document-date" type="date" aria-label="Document date"></div>',
-      '</div></fieldset>',
-      '<label for="ds-purpose">Purpose / কী করতে চান? <span>Optional</span></label>',
-      '<input id="ds-purpose" maxlength="160" placeholder="e.g. Send a legal notice / আইনি নোটিশ পাঠাতে চাই">',
-      '<label for="ds-incident">Incident Details / ঘটনার বিবরণ <b>*</b></label>',
-      '<textarea id="ds-incident" rows="8" minlength="20" maxlength="2600" placeholder="বাংলা, English, Banglish বা অন্য ভাষায় ঘটনার বিবরণ লিখুন। উদাহরণ: amar jomi dokhol koreche..."></textarea>',
+      '<label for="ds-incident">কী ঘটেছে? · Incident Details <b>*</b></label>',
+      '<textarea id="ds-incident" rows="6" minlength="20" maxlength="2600" placeholder="নিজের ভাষায় ঘটনাটি লিখুন—কী ঘটেছে, কোথায়/কখন, কার সঙ্গে এবং কী সমাধান চান। বাংলা / English / Banglish লিখতে পারবেন।"></textarea>',
+      '<p class="ds-incident-tip">টিপস: কেবল প্রকৃত ঘটনা লিখুন। তারিখ, প্রমাণ ও দাবি জানা থাকলে লিখুন; না জানলে অনুমান করবেন না।</p>',
       '<div class="ds-input-foot"><span id="ds-detected">Language: Auto</span><span id="ds-chars">0 / 2600</span></div>',
-      '<label for="ds-output-language">Draft Output Language</label>',
-      '<select id="ds-output-language"><option value="auto">Auto — match incident language</option>',
-      '<option value="bn">বাংলা — Formal Bangla</option><option value="en">English — Professional English</option></select>',
+      '<div class="ds-primary-meta">',
+      '<div><label for="ds-sender-name">আপনার নাম · Applicant</label><input id="ds-sender-name" maxlength="160" autocomplete="off" placeholder="আপনার নাম"></div>',
+      '<div><label for="ds-receiver-name">প্রাপক · Receiver / Authority</label><input id="ds-receiver-name" maxlength="160" autocomplete="off" placeholder="যাকে আবেদন / নোটিশ দিতে চান"></div>',
+      '<div><label for="ds-location">ঘটনার স্থান · Location</label><input id="ds-location" maxlength="160" autocomplete="off" placeholder="থানা, জেলা বা স্থান (জানা থাকলে)"></div>',
+      '</div>',
+      '<label for="ds-output-language">ডকুমেন্টের ভাষা</label>',
+      '<select id="ds-output-language"><option value="auto">Auto — বাংলা / Banglish → বাংলা; English → English</option>',
+      '<option value="bn">বাংলা — আনুষ্ঠানিক বাংলা</option><option value="en">English — Formal English</option></select>',
+      '<details class="ds-extra-fields"><summary>আরও তথ্য দিন <small>ঠিকানা, তারিখ ও উদ্দেশ্য · ঐচ্ছিক</small></summary>',
+      '<div class="ds-extra-grid">',
+      '<div><label for="ds-sender-address">আপনার ঠিকানা</label><textarea id="ds-sender-address" rows="2" maxlength="320" placeholder="ঠিকানা (ঐচ্ছিক)"></textarea></div>',
+      '<div><label for="ds-receiver-address">প্রাপকের ঠিকানা</label><textarea id="ds-receiver-address" rows="2" maxlength="320" placeholder="অফিসের ঠিকানা (ঐচ্ছিক)"></textarea></div>',
+      '<div><label for="ds-document-date">ডকুমেন্টের তারিখ</label><input id="ds-document-date" type="date" aria-label="Document date"></div>',
+      '<div><label for="ds-purpose">কী প্রতিকার বা ফলাফল চান?</label><input id="ds-purpose" maxlength="160" placeholder="যেমন: হারানো জিনিসের বিষয়ে জিডি করতে চাই"></div>',
+      '</div></details>',
+      '<details class="ds-format-details"><summary>ফরম্যাট ও প্রস্তুতির নির্দেশনা</summary>',
       '<div id="ds-format-note" class="ds-format-note"></div>',
       '<div id="ds-preparation-hints" class="ds-preparation-hints" role="note"></div>',
       '<div id="ds-review-note" class="ds-review-note" role="note" hidden></div>',
-      '<div class="ds-warning">⚠ এটি AI-প্রস্তুত নমুনা খসড়া। সত্য তথ্য, সংশ্লিষ্ট আইন, আদালতের নিয়ম, স্বাক্ষর, ফি ও দলিলের ফরম্যাট পেশাদারভাবে যাচাই করুন। পরিচয়পত্র/পাসপোর্ট নম্বর বা গোপন নথি লিখবেন না।</div>',
+      '</details>',
+      '<p class="ds-warning">AI নমুনা খসড়া: ব্যবহার করার আগে তথ্য, বাংলা নাম-ঠিকানা ও প্রযোজ্য নিয়ম যাচাই করুন। ব্যক্তিগত পরিচয়পত্র নম্বর লিখবেন না।</p>',
       '<div class="ds-actions"><button type="button" id="ds-generate" class="ds-generate">✦ &nbsp; Generate Draft <span>→</span></button>',
       '<button type="button" id="ds-reset" class="ds-secondary">Clear Fields</button></div>',
       '<div id="ds-status" role="status" aria-live="polite" class="ds-status" hidden></div>',
@@ -201,7 +202,7 @@ async function generateDraft(){
       body:JSON.stringify({draftTypeId:type.id,document:type.en,purpose,details,outputLanguage:submittedLanguage,...parties})
     });
     const result=await response.json();
-    if(!response.ok || !result.ok)throw new Error(result.message||'Draft generation unavailable');
+    if(!response.ok || !result.ok){const error=new Error(result.message||'Draft generation unavailable');error.suggestedDraftTypeId=result.suggestedDraftTypeId;throw error;}
     const cleanedDraft=cleanDraftDocument(result.answer);
     if(cleanedDraft.length<15)throw new Error('No usable draft was generated');
     if(!el('ds-result'))return; // User navigated away while the AI was working.
@@ -218,9 +219,21 @@ async function generateDraft(){
     el('ds-preview-status').textContent=result.mode==='grounded_ai'?'Source-linked · Lawyer Review':'AI Preview · Unverified';
     syncPreview();renderSources(result.sources);
     if(state.incomplete)setStatus('⚠ AI উত্তর অসম্পূর্ণ হতে পারে। Draft সম্পাদনা করুন এবং পুনরায় generate বা আইনজীবীর সঙ্গে যাচাই করুন।','warning');
+    else if(state.generatedLanguage==='bn' && /[a-z]/i.test([parties.senderName,parties.receiverName,parties.senderAddress,parties.receiverAddress,parties.location].join(' ')) && /[a-z]/i.test(cleanedDraft))setStatus('বাংলা খসড়ায় ইংরেজি অক্ষরে নাম বা ঠিকানা রয়ে গেছে। ব্যবহারের আগে সঠিক বাংলা বানান সম্পাদনা করুন।','warning');
     else setStatus('খসড়া তৈরি হয়েছে। সম্পাদনা, কপি এবং Export করতে পারবেন।','success');
     el('ds-result').scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(error){setStatus(error.name==='AbortError'?'AI response time exceeded. Try again.':error.message,'error');}
+  }catch(error){
+    setStatus(error.name==='AbortError'?'AI response time exceeded. Try again.':error.message,'error');
+    if(error.suggestedDraftTypeId){
+      const button=document.createElement('button');button.type='button';button.className='ds-switch-type';
+      button.textContent='GD Application নির্বাচন করুন';
+      button.addEventListener('click',()=>{
+        state.selected=error.suggestedDraftTypeId;invalidateGeneratedDraft();renderCatalog();
+        el('ds-create')?.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      el('ds-status')?.append(button);
+    }
+  }
   finally{clearTimeout(timeout);setBusy(false);}
 }
 function xmlEscape(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}

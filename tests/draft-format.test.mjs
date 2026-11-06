@@ -22,8 +22,8 @@ test('GD screenshot regression: fabricated translated sender/receiver headings n
   assert.match(draft,/বিষয়: সাধারণ ডায়েরিতে ঘটনা লিপিবদ্ধকরণের আবেদন/);
   assert.match(draft,/মহোদয়,/);
   assert.match(draft,/বিনীত নিবেদন এই যে/);
-  assert.match(draft,/ঘটনার বিবরণ:\nচাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
-  assert.match(draft,/অতএব, উল্লিখিত ঘটনাটি সাধারণ ডায়েরিতে লিপিবদ্ধ/);
+  assert.match(draft,/বিনীত নিবেদন এই যে, চাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
+  assert.match(draft,/অতএব, ঘটনাটি সাধারণ ডায়েরিতে লিপিবদ্ধ/);
   assert.match(draft,/বিনীত নিবেদক\nনাম: রাইহান/);
   assert.doesNotMatch(draft,/পাঠানো\s+হ[য়য়]েছে|গ্রহণ\s+করা\s+হ[য়য়]েছে|\*\*|গ্রাম ডিভিশন আবেদন/u);
 });
@@ -66,7 +66,7 @@ test('English application remains formal English and does not switch to Bengali'
     'I lost a personal item near a railway station and want this incident to be recorded.',detectResponseLanguage);
   assert.match(result,/To\nOfficer-in-Charge\nSadar Police Station/);
   assert.match(result,/Subject: Request to Record a General Diary/);
-  assert.match(result,/Statement of facts:/);
+  assert.match(result,/I respectfully submit that/);
   assert.match(result,/Signature: /);
   assert.doesNotMatch(result,/বরাবর|বিনীত নিবেদক/);
 });
@@ -118,9 +118,9 @@ test('native Workers AI API returns completed GD paper after malformed model dra
   assert.equal(response.status,200,JSON.stringify(json));
   assert.equal(json.ok,true);
   assert.match(json.answer,/বরাবর\nঅফিসার ইনচার্জ/);
-  assert.match(json.answer,/ঘটনার বিবরণ:\nচাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
+  assert.match(json.answer,/বিনীত নিবেদন এই যে, চাঁপাইনবাবগঞ্জ স্টেশনের কাছে/);
   assert.doesNotMatch(json.answer,/পাঠানো\s+হ[য়য়]েছে|\*\*/);
-  assert.match(modelPrompt,/NARRATIVE ONLY/);
+  assert.match(modelPrompt,/Return ONLY JSON/);
 });
 
 test('missing language translation fails safely rather than issuing a formal-looking mixed-language paper',async()=>{
@@ -134,4 +134,51 @@ test('missing language translation fails safely rather than issuing a formal-loo
   const response=await worker.fetch(request,{AI:{run:async()=>({response:'**পাঠানো হয়েছে:** amar nam'})},LEGAL_SEARCH_INSTANCE:''});
   assert.equal(response.status,422);
   assert.equal((await response.json()).code,'DRAFT_FORMAT_UNVERIFIED');
+});
+
+
+test('structured AI reply improves facts, subject and verified Bangla spelling without duplicate headers',()=>{
+  const input={details:'আমি একটি পণ্যের অগ্রিম টাকা দিয়েছি, কিন্তু নির্ধারিত দিনে পণ্যটি পাইনি।',senderName:'Raihan',senderAddress:'Nimtola Chapainawabganj',receiverName:'ABC Limited',receiverAddress:'Dhaka',location:'Chapainawabganj station',documentDate:'2026-11-05',outputLanguage:'bn'};
+  const model=JSON.stringify({
+    narrative:'আমি উক্ত প্রতিষ্ঠানের কাছে একটি পণ্যের জন্য অগ্রিম অর্থ প্রদান করেছি। নির্ধারিত সময়ে পণ্যটি সরবরাহ করা হয়নি। সমস্যা সমাধানের জন্য যোগাযোগ করার পরও বিষয়টি নিষ্পত্তি হয়নি। তাই এ বিষয়ে যথাযথ সমাধান কামনা করছি।',
+    subject:'অগ্রিম অর্থ প্রদানের পর পণ্য সরবরাহ না হওয়ার বিষয়ে',
+    names:{senderName:'রায়হান',senderAddress:'নিমতলা, চাঁপাইনবাবগঞ্জ',receiverName:'এবিসি লিমিটেড',receiverAddress:'ঢাকা',location:'চাঁপাইনবাবগঞ্জ স্টেশন'}
+  });
+  const result=formatDraft(type('legal-notice'),input,model,detectResponseLanguage);
+  assert.match(result,/প্রেরক: রায়হান/);
+  assert.match(result,/প্রাপক: এবিসি লিমিটেড/);
+  assert.match(result,/নিমতলা, চাঁপাইনবাবগঞ্জ/);
+  assert.match(result,/বিষয়: অগ্রিম অর্থ প্রদানের পর পণ্য সরবরাহ না হওয়ার বিষয়ে/);
+  assert.match(result,/নির্ধারিত সময়ে পণ্যটি সরবরাহ করা হয়নি/);
+  assert.equal((result.match(/প্রেরক:/g)||[]).length,1);
+  assert.equal((result.match(/বিষয়:/g)||[]).length,1);
+  assert.doesNotMatch(result,/Raihan|Nimtola|Dhaka|ABC Limited|Chapainawabganj/);
+});
+
+test('Legal Notice to police station fails with a GD recommendation before model inference',async()=>{
+  let modelCalls=0;
+  const res=await worker.fetch(new Request('https://lexglobalbd.test/api/workflows/instant-legal-draft',{
+    method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify({draftTypeId:'legal-notice',document:'Legal Notice',outputLanguage:'bn',receiverName:'Chapainawabganj Police Station',details:'I lost my phone and want to report it at the police station.'})
+  }),{AI:{run:async()=>{modelCalls++;return {response:'unused'};}},LEGAL_SEARCH_INSTANCE:''});
+  assert.equal(res.status,422);
+  const result=await res.json();
+  assert.equal(result.code,'DRAFT_TYPE_MISMATCH');
+  assert.equal(result.suggestedDraftTypeId,'gd-application');
+  assert.equal(modelCalls,0);
+});
+
+test('unknown parties stay placeholders even when JSON model invents a name',()=>{
+  const input={details:'সংশ্লিষ্ট অফিসে আমার নথির একটি তথ্য সংশোধন করার প্রয়োজন হয়েছে।',senderName:'',receiverName:'',outputLanguage:'bn'};
+  const raw=JSON.stringify({narrative:'আমার একটি নথিতে থাকা তথ্য সংশোধনের জন্য সংশ্লিষ্ট অফিসে আবেদন জানাচ্ছি।',names:{senderName:'কল্পিত নাম',receiverName:'কল্পিত অফিস'}});
+  const doc=formatDraft(type('general-application'),input,raw,detectResponseLanguage);
+  assert.doesNotMatch(doc,/কল্পিত নাম|কল্পিত অফিস/);
+  assert.match(doc,/\[যাচাই প্রয়োজন\]/);
+});
+
+test('non-application drafts keep class-specific formatting, not fake official application letter',()=>{
+  const result=formatDraft(type('nda'),{details:'Two companies would like a confidentiality agreement but have not agreed the details.',outputLanguage:'en'},
+    'NON-DISCLOSURE AGREEMENT\nParties: [To be verified]\nTerms: [To be verified]',detectResponseLanguage);
+  assert.match(result,/NON-DISCLOSURE AGREEMENT/);
+  assert.doesNotMatch(result,/বরাবর|বিনীত নিবেদক|মহোদয়/);
 });
