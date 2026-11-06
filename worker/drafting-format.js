@@ -101,11 +101,21 @@ function letter(type,data,parts,lang,notice){
   const recvAddr=displayField(data,parts.model,'receiverAddress',lang),date=field(data,'documentDate',lang);
   const title=specificSubject(type,data,parts.model,lang,notice);
   const addressLine=recvAddr===(bn?'[যাচাই প্রয়োজন]':'[To be verified]')?'':'\n'+recvAddr;
+  // Keep supplied incident location ONCE in the body, rather than repeating
+  // location in the header, applicant block and a separate section.
+  const incidentLocation=displayField(data,parts.model,'location',lang);
+  const rawLocation=String(data.location||'').trim();
+  const mentionsLocation=rawLocation &&
+    (parts.body.toLowerCase().includes(rawLocation.toLowerCase()) ||
+     (incidentLocation.length>=7&&parts.body.toLowerCase().includes(incidentLocation.slice(0,7).toLowerCase())));
+  const factBody=rawLocation&&!mentionsLocation
+    ? parts.body+'\n'+(bn?'ঘটনাস্থল: ':'Location of incident: ')+incidentLocation
+    : parts.body;
   if(bn){
     if(notice)return [
       type.id==='demand-notice'?'দাবির আইনি নোটিশ':'আইনি নোটিশ',
       'তারিখ: '+date,'প্রাপক: '+receiver+addressLine,'বিষয়: '+title+'।','মহোদয়,',
-      'আপনার অবগতির জন্য জানানো যাচ্ছে যে, '+parts.body,
+      'আপনার অবগতির জন্য জানানো যাচ্ছে যে, '+factBody,
       'উল্লিখিত বিষয়ে প্রয়োজনীয় পদক্ষেপ ও লিখিত জবাব প্রদানের অনুরোধ জানাচ্ছি।',
       'প্রেরক: '+sender+'\nঠিকানা: '+addr+'\nস্বাক্ষর: __________________'
     ].join('\n\n');
@@ -115,13 +125,13 @@ function letter(type,data,parts,lang,notice){
       'অতএব, বিষয়টি বিবেচনা করে প্রয়োজনীয় ব্যবস্থা গ্রহণের জন্য বিনীত আবেদন জানাচ্ছি।';
     return [
       'তারিখ: '+date,'বরাবর\n'+authority+receiver+addressLine,'বিষয়: '+title+'।',
-      'মহোদয়,','বিনীত নিবেদন এই যে, '+parts.body,prayer,
+      'মহোদয়,','বিনীত নিবেদন এই যে, '+factBody,prayer,
       'বিনীত নিবেদক\nনাম: '+sender+'\nঠিকানা: '+addr+'\nস্বাক্ষর: __________________'
     ].join('\n\n');
   }
   if(notice)return [
     'LEGAL NOTICE','Date: '+date,'To: '+receiver+addressLine,'Subject: '+title,
-    'Sir/Madam,','Please take notice of the following matter: '+parts.body,
+    'Sir/Madam,','Please take notice of the following matter: '+factBody,
     'You are requested to consider the matter and provide an appropriate written response.',
     'Sincerely,\n'+sender+'\nAddress: '+addr+'\nSignature: __________________'
   ].join('\n\n');
@@ -131,7 +141,7 @@ function letter(type,data,parts,lang,notice){
     'I respectfully request consideration and appropriate action regarding this matter.';
   return [
     'Date: '+date,'To\n'+authority+receiver+addressLine,'Subject: '+title,
-    'Sir/Madam,','I respectfully submit that '+parts.body,prayer,
+    'Sir/Madam,','I respectfully submit that '+factBody,prayer,
     'Yours faithfully,\n'+sender+'\nAddress: '+addr+'\nSignature: __________________'
   ].join('\n\n');
 }
