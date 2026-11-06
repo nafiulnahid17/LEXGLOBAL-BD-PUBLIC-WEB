@@ -1,3 +1,4 @@
+import { getDraftType } from '../site/drafting-catalog.js';
 /**
  * LexGlobal BD For Public — Cloudflare Workers AI backend.
  * No identity docs, file contents, or conversation text are persisted.
@@ -81,6 +82,29 @@ function isOfficialUrl(value) {
     return url.protocol === 'https:' && !url.username && !url.password &&
       /(^|\.)gov\.bd$/i.test(url.hostname) && url.pathname.length < 500;
   } catch { return false; }
+}
+function validateDraftingInput(slug,data) {
+  if (slug !== 'instant-legal-draft') return null;
+  const draftId=data.draftTypeId;
+  if (draftId === undefined) return null; // Backward-compatible legacy preview callers.
+  if (typeof draftId !== 'string') throw new Error('INVALID_DRAFT_TYPE');
+  const type=getDraftType(draftId);
+  if (!type) throw new Error('INVALID_DRAFT_TYPE');
+  if (!['bn','en','auto'].includes(data.outputLanguage||'auto')) throw new Error('INVALID_DRAFT_LANGUAGE');
+  if (typeof data.details!=='string' || data.details.trim().length<20) throw new Error('MISSING_INCIDENT');
+  if (data.details.length>2600) throw new Error('INVALID_INPUT');
+  return type;
+}
+function draftingRule(data,type) {
+  if (!type) return '';
+  const language=data.outputLanguage||'auto';
+  const output=language==='bn'
+    ? 'Output the COMPLETE document in formal, clear Bengali (বাংলা লিপি), including headings and clauses. Preserve proper names only if user explicitly supplied them.'
+    : language==='en'
+      ? 'Output the COMPLETE document only in professional English, including headings and clauses.'
+      : 'Match incident language: Bengali script -> formal Bengali; colloquial Banglish -> formal Bengali script; English -> English; other language -> that language, unless locally required filing language differs. Do not force Bengali when a complete English incident was provided.';
+  const risk=type.review ? 'This is a court/registry-related or otherwise high-risk draft. Flag that local form, jurisdiction, court fees, stamps, notarization and lawyer review may be legally required. Never assert that this is filing-ready.' : 'This is a general sample draft, not an authenticated legal document.';
+  return '\\nDRAFTING WORKFLOW RULE (trusted catalog): Selected document = '+type.en+' / '+type.bn+'; category='+type.category+'; format profile='+type.profile+'. '+output+' '+risk+' Produce an editable, well-structured document with a title, parties as placeholders, relevant background, dated factual paragraphs (ONLY what user supplied), requested relief/terms where relevant, and signature/date/attachments placeholders. Never fabricate courts, statutes, case numbers, names, signatures, payments, addresses, actual legal requirements, deadlines or citations. Use [যাচাই প্রয়োজন] or [To be verified] for missing or uncertain details. Do not claim notarization, registration or court filing is complete. Avoid prefacing with a long chatbot explanation; provide the document itself plus one short review reminder.';
 }
 function queryFor(slug, data) {
   const fields = {
@@ -212,7 +236,7 @@ function modelPayload(slug, query, sources, preview=false, history=[], languageR
   }
   return {
     messages,
-    max_tokens:continuation ? 750 : slug==='ai-legal-assistant' ? 1400 : slug==='instant-legal-draft' ? 1100 : 950,
+    max_tokens:continuation ? 750 : slug==='ai-legal-assistant' ? 1400 : slug==='instant-legal-draft' ? 2300 : 950,
     temperature:preview?0.15:0.1,top_p:preview?0.85:0.8,
     stream:preview && streaming
   };
@@ -226,7 +250,7 @@ async function runAI(env, payload) {
   // No REST requests, bearer tokens, account IDs or gateway routing are supported.
   if (!env.AI || typeof env.AI.run !== 'function') throw new Error('AI_BINDING_NOT_CONFIGURED');
   const model = env.AI_MODEL || MODEL;
-  return withDeadline(env.AI.run(model, payload), 20_000);
+  return withDeadline(env.AI.run(model, payload), payload.max_tokens>2000 ? 38_000 : 20_000);
 }
 function cleanPreviewAnswer(text) {
   // No source index means no reference markers may be presented as verified citations.
@@ -234,13 +258,14 @@ function cleanPreviewAnswer(text) {
 }
 function validatedAnswer(text, sourceCount) {
   // Citation references are checked server-side. This DOES NOT prove full factual correctness.
-  if (!text || text.length < 15 || text.length > 6500) return false;
+  if (!text || text.length < 15 || text.length > 14000) return false;
   const tags = [...text.matchAll(/\[(\d+)\]/g)].map(m=>Number(m[1]));
   return tags.length>0 && tags.every(n=>Number.isInteger(n) && n>=1 && n<=sourceCount);
 }
 async function handleLegal(slug, input, env) {
   let query, history, continuation='';
   try {
+    const draftType=validateDraftingInput(slug,input);
     query=queryFor(slug,input);
     history=parseConversationHistory(slug,input);
     if(input.continuation!==undefined){
@@ -248,8 +273,8 @@ async function handleLegal(slug, input, env) {
       continuation=input.continuation.trim();
     }
   } catch(error) {
-    const code=error.message==='MISSING_INPUT'?'MISSING_INPUT':error.message==='INVALID_HISTORY'?'INVALID_HISTORY':'INVALID_INPUT';
-    return fail(code,code==='MISSING_INPUT'?'প্রয়োজনীয় সাধারণ তথ্য লিখুন।':code==='INVALID_HISTORY'?'কথোপকথনের ফরম্যাট সঠিক নয়।':'তথ্যের ধরন বা দৈর্ঘ্য সঠিক নয়।',422);
+    const code=['MISSING_INPUT','MISSING_INCIDENT','INVALID_DRAFT_TYPE','INVALID_DRAFT_LANGUAGE','INVALID_HISTORY'].includes(error.message)?error.message:'INVALID_INPUT';
+    return fail(code,code==='MISSING_INPUT'?'প্রয়োজনীয় সাধারণ তথ্য লিখুন।':code==='INVALID_HISTORY'?'কথোপকথনের ফরম্যাট সঠিক নয়।':code==='INVALID_DRAFT_TYPE'?'ড্রাফটের ধরন সঠিক নয়।':code==='MISSING_INCIDENT'?'ঘটনার বিবরণ অন্তত ২০ অক্ষরে লিখুন।':'তথ্যের ধরন বা দৈর্ঘ্য সঠিক নয়।',422);
   }
   // Preview is enabled when the trusted legal index has not been installed yet.
   // Missing AI binding is a real configuration failure; never fake AI output.
@@ -267,7 +292,8 @@ async function handleLegal(slug, input, env) {
   }
   const preview=sources.length===0;
   const streaming=preview && slug==='ai-legal-assistant' && input.stream===true;
-  const languageRule=replyLanguageInstruction(input);
+  const languageRule=replyLanguageInstruction(input) +
+    (slug==='instant-legal-draft' ? draftingRule(input,getDraftType(input.draftTypeId)) : '');
   let result;
   try {result=await runAI(env,modelPayload(slug,query,sources,preview,history,languageRule,streaming,continuation));}
   catch {return fail('AI_TEMPORARILY_UNAVAILABLE','Cloudflare AI এখন উত্তর দিতে পারছে না। একটু পরে চেষ্টা করুন।',503);}
@@ -280,7 +306,7 @@ async function handleLegal(slug, input, env) {
   const finishReason=result?.choices?.[0]?.finish_reason??result?.finish_reason??null;
   const incomplete=['length','max_tokens','token_limit'].includes(finishReason) ||
     (finishReason===null && answer.length>90 && !/[.!?।॥…]\s*$/u.test(answer));
-  if (!answer || answer.length>6500) return fail('INVALID_AI_OUTPUT','AI থেকে ব্যবহারযোগ্য উত্তর পাওয়া যায়নি। আবার চেষ্টা করুন।',502);
+  if (!answer || answer.length>(slug==='instant-legal-draft'?14000:6500)) return fail('INVALID_AI_OUTPUT','AI থেকে ব্যবহারযোগ্য উত্তর পাওয়া যায়নি। আবার চেষ্টা করুন।',502);
   if (!preview && !validatedAnswer(answer,sources.length)) {
     // Do not label unsupported citations as verified. Offer preview instead of a dead end.
     return reply({ok:true,mode:'preview_ai',verified:false,answer:cleanPreviewAnswer(answer),

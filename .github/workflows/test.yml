@@ -14,3 +14,5 @@ jobs:
       - run: npm test
       - run: node --check worker/index.js
       - run: node --check site/app.js
+      - run: node --check site/drafting.js
+      - run: node --check site/drafting-catalog.js
