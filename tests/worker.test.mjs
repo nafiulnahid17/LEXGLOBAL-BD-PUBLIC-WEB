@@ -165,14 +165,14 @@ test('native env.AI.run is the only model invocation interface',async()=>{
   const e=env({AI:binding});
   const r=await call(req('/api/workflows/ai-legal-assistant',{question:'সাধারণ আইন বিষয়ে কী জানা যায়?'}),e);
   assert.equal(r.status,200);assert.equal(r.json.mode,'grounded_ai');
-  assert.equal(called,1);assert.equal(modelSeen,'@cf/qwen/qwen3-30b-a3b-fp8');
+  assert.equal(called,1);assert.equal(modelSeen,'@cf/google/gemma-4-26b-a4b-it');
   assert.equal(optionsSeen,undefined);
 });
 
 test('worker source has no REST or token fallback implementation',async()=>{
   const source=await readFile(new URL('../worker/index.js',import.meta.url),'utf8');
   assert.doesNotMatch(source,/api\.cloudflare\.com|Bearer |CF_AI_USE_REST|CF_AI_API_TOKEN|CF_ACCOUNT_ID|AI_GATEWAY_ID/);
-  assert.match(source,/env\.AI\.run\(model, payload\)/);
+  assert.match(source,/env\.AI\.run\(model,\s*options\)/);
 });
 
 test('static site requests delegate to asset binding',async()=>{
@@ -225,7 +225,7 @@ test('non-chat workflows reject supplied conversation state and do not impersona
 test('chat remains stateless without server storage or API keys',async()=>{
   const source=await readFile(new URL('../worker/index.js',import.meta.url),'utf8');
   assert.match(source,/parseConversationHistory\(slug,input\)/);
-  assert.match(source,/env\.AI\.run\(model, payload\)/);
+  assert.match(source,/env\.AI\.run\(model,\s*options\)/);
   assert.doesNotMatch(source,/localStorage|api\.cloudflare\.com\/client\/v4|Bearer /);
 });
 
@@ -287,7 +287,7 @@ test('Bengali script, French, Hindi and Arabic rules apply in grounded and previ
 test('streaming preview AI passes native SSE stream through Worker without API tokens',async()=>{
   let called=0;
   const binding={run:async(model,payload)=>{
-    called++;assert.match(model,/qwen3-30b-a3b-fp8/);assert.equal(payload.stream,true);
+    called++;assert.match(model,/gemma-4-26b-a4b-it/);assert.equal(payload.stream,true);
     const encoder=new TextEncoder();
     return new ReadableStream({start(controller){
       controller.enqueue(encoder.encode('data: {"response":"Hello"}\n\n'));
