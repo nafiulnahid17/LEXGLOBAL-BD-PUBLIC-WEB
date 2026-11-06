@@ -202,7 +202,7 @@ async function generateDraft(){
       body:JSON.stringify({draftTypeId:type.id,document:type.en,purpose,details,outputLanguage:submittedLanguage,...parties})
     });
     const result=await response.json();
-    if(!response.ok || !result.ok)throw new Error(result.message||'Draft generation unavailable');
+    if(!response.ok || !result.ok){const error=new Error(result.message||'Draft generation unavailable');error.suggestedDraftTypeId=result.suggestedDraftTypeId;throw error;}
     const cleanedDraft=cleanDraftDocument(result.answer);
     if(cleanedDraft.length<15)throw new Error('No usable draft was generated');
     if(!el('ds-result'))return; // User navigated away while the AI was working.
@@ -219,9 +219,21 @@ async function generateDraft(){
     el('ds-preview-status').textContent=result.mode==='grounded_ai'?'Source-linked · Lawyer Review':'AI Preview · Unverified';
     syncPreview();renderSources(result.sources);
     if(state.incomplete)setStatus('⚠ AI উত্তর অসম্পূর্ণ হতে পারে। Draft সম্পাদনা করুন এবং পুনরায় generate বা আইনজীবীর সঙ্গে যাচাই করুন।','warning');
+    else if(state.generatedLanguage==='bn' && /[a-z]/i.test([parties.senderName,parties.receiverName,parties.senderAddress,parties.receiverAddress,parties.location].join(' ')) && /[a-z]/i.test(cleanedDraft))setStatus('বাংলা খসড়ায় ইংরেজি অক্ষরে নাম বা ঠিকানা রয়ে গেছে। ব্যবহারের আগে সঠিক বাংলা বানান সম্পাদনা করুন।','warning');
     else setStatus('খসড়া তৈরি হয়েছে। সম্পাদনা, কপি এবং Export করতে পারবেন।','success');
     el('ds-result').scrollIntoView({behavior:'smooth',block:'start'});
-  }catch(error){setStatus(error.name==='AbortError'?'AI response time exceeded. Try again.':error.message,'error');}
+  }catch(error){
+    setStatus(error.name==='AbortError'?'AI response time exceeded. Try again.':error.message,'error');
+    if(error.suggestedDraftTypeId){
+      const button=document.createElement('button');button.type='button';button.className='ds-switch-type';
+      button.textContent='GD Application নির্বাচন করুন';
+      button.addEventListener('click',()=>{
+        state.selected=error.suggestedDraftTypeId;invalidateGeneratedDraft();renderCatalog();
+        el('ds-create')?.scrollIntoView({behavior:'smooth',block:'start'});
+      });
+      el('ds-status')?.append(button);
+    }
+  }
   finally{clearTimeout(timeout);setBusy(false);}
 }
 function xmlEscape(text){return String(text).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
