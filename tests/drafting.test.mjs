@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DRAFT_CATEGORIES,DRAFT_TYPES,FEATURED_DRAFT_IDS,DRAFT_FORMAT_PROFILES,getDraftType} from '../site/drafting-catalog.js';
-import {draftingWorkspace,buildDraftDocx,bindDraftingStudio} from '../site/drafting.js';
+import {draftingWorkspace,buildDraftDocx,bindDraftingStudio,cleanDraftDocument} from '../site/drafting.js';
 import api from '../worker/index.js';
 
 const origin='https://lexglobal.example';
@@ -196,4 +196,63 @@ test('selecting a new drafting type invalidates older generated output instead o
     if(originalWindow===undefined) delete globalThis.window; else globalThis.window=originalWindow;
     globalThis.fetch=originalFetch;
   }
+});
+
+
+test('new sender, receiver, place and date fields appear before editable document; disclaimer stays outside paper',()=>{
+  const html=draftingWorkspace();
+  for(const id of ['ds-sender-name','ds-sender-address','ds-receiver-name','ds-receiver-address','ds-location','ds-document-date','ds-ai-disclaimer']){
+    assert.match(html,new RegExp('id="'+id+'"'),id);
+  }
+  assert.ok(html.indexOf('id="ds-ai-disclaimer"')>html.indexOf('id="ds-draft-text"'));
+  assert.ok(html.indexOf('id="ds-ai-disclaimer"')<html.indexOf('id="ds-print-only"'));
+  assert.match(html,/AI can make mistakes/);
+});
+
+test('party and location fields reach native Workers AI as user-supplied data',async()=>{
+  let payload;
+  const response=await api.fetch(post({
+    draftTypeId:'legal-notice',document:'Legal Notice',details:facts,outputLanguage:'bn',
+    senderName:'মোঃ আলী',senderAddress:'রাজশাহী শহর',receiverName:'ABC Limited',
+    receiverAddress:'ঢাকা অফিস',location:'রাজশাহী',documentDate:'2026-11-07',
+  }),env({AI:{run:async(_model,p)=>{payload=p;return {response:'আইনি নোটিশ\nবিষয়: তথ্য যাচাই সাপেক্ষে\nপ্রেরক: মোঃ আলী\nপ্রাপক: ABC Limited'};}}}));
+  assert.equal(response.status,200);
+  const latest=payload.messages.at(-1).content;
+  for(const expected of ['senderName: মোঃ আলী','senderAddress: রাজশাহী শহর','receiverName: ABC Limited','receiverAddress: ঢাকা অফিস','location: রাজশাহী','documentDate: 2026-11-07']){
+    assert.ok(latest.includes(expected),expected);
+  }
+  const policy=payload.messages[0].content;
+  assert.match(policy,/professionally formatted legal DOCUMENT BODY/);
+  assert.match(policy,/UI shows cautions separately BELOW the paper/);
+  assert.match(policy,/formal and respectful drafting style/);
+});
+
+test('malformed or oversized party/location fields are rejected before inference',async()=>{
+  let calls=0;
+  for(const bad of [{senderName:4},{senderAddress:'x'.repeat(321)},{receiverName:'x'.repeat(161)},{location:'x'.repeat(161)},{documentDate:'2026/11/07'}]){
+    const response=await api.fetch(post({draftTypeId:'legal-notice',document:'Legal Notice',details:facts,outputLanguage:'en',...bad}),
+      env({AI:{run:async()=>{calls++;return {response:'never'};}}}));
+    assert.equal(response.status,422);
+    assert.equal((await response.json()).code,'INVALID_INPUT');
+  }
+  assert.equal(calls,0);
+});
+
+test('DOCX export has professional title, subject and paragraphs but no AI warning watermark',async()=>{
+  const text='LEGAL NOTICE\nTo: ABC Limited\nSubject: Request for records\nThe recipient is requested to review these records.';
+  const zip=readZipEntries(await buildDraftDocx('Legal Notice',text,'standard','en').then(blob=>blob.arrayBuffer()));
+  const xml=zip.get('word/document.xml');
+  assert.match(xml,/w:jc w:val="center"/);
+  assert.match(xml,/w:b\//);
+  assert.match(xml,/w:jc w:val="both"/);
+  assert.ok(!xml.includes('DRAFT — REVIEW BEFORE USE'));
+  assert.ok(!xml.includes('AI can make mistakes'));
+});
+
+test('trailing model disclaimer is removed while important factual placeholders stay',()=>{
+  const text='আইনি নোটিশ\n\nপ্রেরক: [যাচাই প্রয়োজন]\nপ্রাপক: [যাচাই প্রয়োজন]\n\nবিষয়: নথিপত্র চেয়ে আবেদন।\n\nAI can make mistakes. Consult a lawyer.';
+  const cleaned=cleanDraftDocument(text);
+  assert.match(cleaned,/প্রেরক: \[যাচাই প্রয়োজন\]/);
+  assert.match(cleaned,/বিষয়: নথিপত্র চেয়ে আবেদন/);
+  assert.doesNotMatch(cleaned,/AI can make mistakes/);
 });
