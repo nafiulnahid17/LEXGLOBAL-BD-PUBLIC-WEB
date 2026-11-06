@@ -15,7 +15,7 @@ export function draftingWorkspace() {
       '<p>ডকুমেন্ট নির্বাচন করুন, ঘটনা লিখুন, AI দিয়ে একটি সম্পাদনাযোগ্য নমুনা খসড়া তৈরি করুন।</p></div>',
       '<span class="ds-total">', DRAFT_TYPES.length, ' Draft Types <small>9 Categories</small></span></section>',
       '<div class="ds-steps"><span><b>01</b> Draft Type</span><span><b>02</b> Incident</span><span><b>03</b> Generate & Export</span></div>',
-      '<section class="ds-section"><div class="ds-heading"><div><small>QUICK START</small><h3>Featured Drafting</h3></div><span>Popular templates</span></div>',
+      '<section class="ds-section"><div class="ds-heading"><div><small>FOR PUBLIC</small><h3>সাধারণ মানুষের Drafting</h3></div><span>Everyday applications</span></div><p class="ds-incident-tip">এগুলো আবেদন ও অভিযোগের নমুনা তৈরিতে সহায়ক; সরকারি পোর্টাল বা সংশ্লিষ্ট কর্তৃপক্ষের নির্ধারিত ফরমে জমা দেওয়ার বিকল্প নয়।</p>',
       '<div id="ds-featured" class="ds-featured"></div></section>',
       '<details class="ds-library-wrapper" id="ds-library"><summary>সব Drafting Type দেখুন <small>Search & Filter · '+ DRAFT_TYPES.length +' options</small></summary>',
       '<section class="ds-section"><div class="ds-heading"><div><small>DOCUMENT LIBRARY</small><h3>All Drafting Types</h3></div>',
