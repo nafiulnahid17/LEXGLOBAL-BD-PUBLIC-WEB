@@ -93,6 +93,11 @@ function validateDraftingInput(slug,data) {
   if (!['bn','en','auto'].includes(data.outputLanguage||'auto')) throw new Error('INVALID_DRAFT_LANGUAGE');
   if (typeof data.details!=='string' || data.details.trim().length<20) throw new Error('MISSING_INCIDENT');
   if (data.details.length>2600) throw new Error('INVALID_INPUT');
+  const partyLimits={senderName:160,senderAddress:320,receiverName:160,receiverAddress:320,location:160};
+  for(const [key,limit] of Object.entries(partyLimits)){
+    if(data[key]!==undefined&&(typeof data[key]!=='string'||data[key].length>limit))throw new Error('INVALID_INPUT');
+  }
+  if(data.documentDate!==undefined&&(typeof data.documentDate!=='string'||(data.documentDate&&!/^\d{4}-\d{2}-\d{2}$/.test(data.documentDate))))throw new Error('INVALID_INPUT');
   return type;
 }
 function draftingRule(data,type) {
@@ -103,19 +108,19 @@ function draftingRule(data,type) {
     : language==='en'
       ? 'Output the COMPLETE document only in professional English, including headings and clauses.'
       : 'Match incident language: Bengali script -> formal Bengali; colloquial Banglish -> formal Bengali script; English -> English; other language -> that language, unless locally required filing language differs. Do not force Bengali when a complete English incident was provided.';
-  const risk=type.review ? 'This is a court/registry-related or otherwise high-risk draft. Flag that local form, jurisdiction, court fees, stamps, notarization and lawyer review may be legally required. Never assert that this is filing-ready.' : 'This is a general sample draft, not an authenticated legal document.';
-  return '\\nDRAFTING WORKFLOW RULE (trusted catalog): Selected document = '+type.en+' / '+type.bn+'; category='+type.category+'; format profile='+type.profile+'. '+output+' '+risk+' Produce an editable, well-structured document with a title, parties as placeholders, relevant background, dated factual paragraphs (ONLY what user supplied), requested relief/terms where relevant, and signature/date/attachments placeholders. Never fabricate courts, statutes, case numbers, names, signatures, payments, addresses, actual legal requirements, deadlines or citations. Use [যাচাই প্রয়োজন] or [To be verified] for missing or uncertain details. Do not claim notarization, registration or court filing is complete. Avoid prefacing with a long chatbot explanation; provide the document itself plus one short review reminder.';
+  const risk=type.review ? 'Court and registry requirements are uncertain until verified. Do not invent court names, jurisdiction, filing fees, stamps or registration claims.' : 'Use an appropriately formal document style without pretending to be issued by an official authority.';
+  return '\\nDRAFTING WORKFLOW RULE (trusted catalog): Selected document = '+type.en+' / '+type.bn+'; category='+type.category+'; format profile='+type.profile+'. '+output+' '+risk+' Write ONLY the professionally formatted legal DOCUMENT BODY. Use formal and respectful drafting style, clean headings, a clear subject, concise numbered facts or clauses, relief/terms where appropriate, a signature block and date/place. For notices or applications show Sender/Applicant and Receiver/Addressee with their addresses when provided. For court-related petitions use appropriate party roles and a placeholder for court/authority if absent, never fabricated court details. Include the exact provided senderName, senderAddress, receiverName, receiverAddress, location and documentDate when supplied; where absent insert discreet [যাচাই প্রয়োজন] or [To be verified] placeholders instead of invented details. Place sender/receiver identifiers in the document, not just a chat explanation. No Markdown code fences, AI disclaimer, preface, postscript, review reminder, AI can make mistakes, Sample Draft label, legal advice warning or instructions outside the actual document text. The UI shows cautions separately BELOW the paper. Never fabricate courts, statutes, case numbers, names, signatures, payments, addresses, legal requirements, deadlines or citations. Do not claim notarization, registration or court filing is complete.';
 }
 function queryFor(slug, data) {
   const fields = {
     'ai-legal-assistant': ['question'],
-    'instant-legal-draft': ['document','purpose','details'],
+    'instant-legal-draft': ['document','purpose','senderName','senderAddress','receiverName','receiverAddress','location','documentDate','details'],
     'ai-case-analysis': ['type','facts']
   }[slug];
   const values = fields.map(field => {
     const value = data[field];
     if (value == null || value === '') return null;
-    if (typeof value !== 'string' || value.length > (field === 'facts' || field === 'details' || field === 'question' ? 2600 : 180)) throw new Error('INVALID_INPUT');
+    if (typeof value !== 'string' || value.length > (field === 'facts' || field === 'details' || field === 'question' ? 2600 : field==='senderAddress'||field==='receiverAddress'?320:180)) throw new Error('INVALID_INPUT');
     return `${field}: ${value.trim()}`;
   }).filter(Boolean);
   if (!values.length || values.join('\n').length < 8) throw new Error('MISSING_INPUT');
