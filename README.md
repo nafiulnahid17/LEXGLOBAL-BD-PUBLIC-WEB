@@ -194,3 +194,25 @@ Fallback model: @cf/google/gemma-4-26b-a4b-it via native Cloudflare env.AI.run b
 If no Gateway key is configured, Cloudflare runs immediately. If a Gateway request fails or returns unusable data, the Worker falls back to Cloudflare; first-response SSE is passed through as OpenAI-compatible data. When an SSE connection fails after streaming begins, browser-side continuation is used instead of silently restarting and duplicating a partially delivered answer. The Worker does not persist inputs, but **Vercel and model providers receive the text you submit** and have their own retention policies. Both systems may incur usage charges.
 
 References: https://vercel.com/docs/ai-gateway/sdks-and-apis and https://vercel.com/docs/ai-gateway/authentication-and-byok and https://vercel.com/ai-gateway/models/gemini-2.5-flash
+
+
+### AI Case Discussion & Analysis (7 November 2026)
+
+The Public AI Case Analysis route has a dedicated tab-memory discussion UI and a stateless Cloudflare Worker endpoint: POST /api/workflows/ai-case-analysis. A one-line case description is enough to begin. Bangla/Banglish/mixed Bangla-English input produces Bangla, entirely English produces English; explicit language override supported. Previous question/answer pairs are held in this browser tab only and sent as untrusted context on follow-up.
+
+**Report:** case overview, known facts, missing facts, provisional legal issues, timeline, original evidence to preserve, documents to prepare/check, next steps, risks and follow-up questions. A server-managed list of possible Bangladesh statute/section references links to official law pages. User-triggered Save TXT or Copy does not upload evidence or case files. No case database/storage has been connected.
+
+**Official candidate source registry:** model text is never allowed to supply authoritative section numbers or links. The server selects only topic matches from worker/case-sources.js:
+- Code of Criminal Procedure 1898 section 154: https://bdlaws.minlaw.gov.bd/act-75/section-20845.html?lang=en
+- Evidence Act 1872 section 65B: https://bdlaws.minlaw.gov.bd/act-print-24/section-print-51389.html
+- Contract Act 1872 section 73: https://bdlaws.minlaw.gov.bd/act-print-26/section-print-259.html
+- Family Courts Act 2023 section 5: https://bdlaws.minlaw.gov.bd/act-details-1444.html?lang=en
+- Limitation Act 1908 section 3: https://bdlaws.minlaw.gov.bd/act-print-88/section-print-6445.html
+- Transfer of Property Act 1882 section 54: https://bdlaws.minlaw.gov.bd/act-48/section-16094.html
+- Consumer Rights Protection Act 2009 section 60 (government consumer authority guidance): https://dncrp.gov.bd/pages/static-pages/6922de13933eb65569e180a8
+
+All sources are **possible topic matches, never definitive applicability findings**. For example, CrPC 154 requires a cognizable offence; alleging theft does not establish the legal classification. Contract Act 73 requires evidence of a contract and loss. A basic land dispute must not automatically receive a land-sale section. Family Courts Act 2023 replaces references to the older 1985 Ordinance in the curated examples. Court-specific requirements, legal deadlines and amendments need independent verification.
+
+**Primary AI provider:** Vercel AI Gateway Gemini 2.5 Flash, with existing native Cloudflare Workers AI fallback. The Worker requests structured JSON and rejects malformed or wrong-language results, retrying at most once. It strips model-written unsupported statute numbers from display fields; the only clickable section links come from the verified static registry. API sends no-store/private responses with verified:false and stored:false. A section link is never proof of verified case analysis. No document uploads or personal ID numbers are supported. The model providers process submitted text under their separate privacy policies.
+
+**Test coverage:** one-line facts, Bangla/Banglish/mixed and English, civil/criminal/family/contract/consumer topics, unknown facts, citations, hallucinated section stripping, follow-up history, urgent-safety flag, missing provider, malformed output and frontend markup. Automated simulation is not a real-provider test; deploy and perform live Gemini/Cloudflare checks before relying on public use.
