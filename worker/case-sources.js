@@ -46,7 +46,7 @@ const LAW_LIBRARY = Object.freeze([
     url:'https://bdlaws.minlaw.gov.bd/act-details-1444.html?lang=en',
     bn:'বিবাহবিচ্ছেদ, দেনমোহর, ভরণপোষণ এবং সন্তানের অভিভাবকত্ব/তত্ত্বাবধানসহ নির্দিষ্ট পারিবারিক বিষয়ে আদালতের এখতিয়ার।',
     en:'Family court jurisdiction over specified matters including divorce, dower, maintenance and child guardianship/custody.',
-    match:/বিবাহবিচ্ছেদ|তালাক|বিচ্ছেদ|দেনমোহর|ভরণপোষণ|সন্তানের হেফাজত|সন্তানের অভিভাবকত্ব|স্ত্রী|স্বামী|শিশুর হেফাজত|divorce|dower|maintenance|custody|guardianship|wife|husband|spouse|bou|shami|talaq|denmohor|vhoronposhon/iu
+    match:/বিবাহবিচ্ছেদ|তালাক|বিচ্ছেদ|দেনমোহর|ভরণপোষণ|সন্তানের হেফাজত|সন্তানের অভিভাবকত্ব|শিশুর হেফাজত|divorce|dower|maintenance|custody|guardianship|talaq|denmohor|vhoronposhon/iu
   },
   {
     id:'limitation3',section:'3',lawEn:'Limitation Act, 1908',lawBn:'তামাদি আইন, ১৯০৮',
