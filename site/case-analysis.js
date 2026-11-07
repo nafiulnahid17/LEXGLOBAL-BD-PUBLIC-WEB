@@ -38,7 +38,7 @@ export function caseAnalysisWorkspace(){return `
   </div>
   <section class="ca-references"><h4>10 · Applicable Law Candidates / সম্ভাব্য আইন ও ধারা</h4>
    <p>শুধু বিষয়ভিত্তিক সরকারি reference দেখানো হয়; আপনার ঘটনার ক্ষেত্রে প্রযোজ্যতা ও বর্তমান সংশোধন যাচাই করতে হবে।</p>
-   <div id="ca-ref-list"></div></section>
+   <div id="ca-ref-list"></div><p class="ca-aid-note">সরকারি আইনি সহায়তা: <a href="tel:16430">১৬৪৩০</a> · <a href="https://natore.judiciary.gov.bd/bn/menu/page/legal-aid-helpline" target="_blank" rel="noopener noreferrer">Judiciary official information</a></p></section>
   <section class="ca-panel ca-followups"><h4>11 · Case Discussion / পরবর্তী আলোচনা</h4><ul id="ca-questions"></ul>
    <form id="ca-followup-form"><label for="ca-followup">আরও তথ্য বা প্রশ্ন দিন</label>
    <textarea id="ca-followup" rows="3" maxlength="850" placeholder="যেমন: আমার কাছে WhatsApp screenshot আছে, এরপর কী করব?"></textarea>
