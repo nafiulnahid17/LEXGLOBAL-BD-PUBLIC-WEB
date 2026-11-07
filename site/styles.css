@@ -382,3 +382,8 @@ button, a, input, textarea, select { -webkit-tap-highlight-color: transparent; }
 .chat-continue {display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:6px;padding:7px 10px;border:1px solid rgba(243,196,109,.42);border-radius:12px;background:rgba(27,42,58,.9);color:#f9d7a2;font-size:11px;}
 .chat-continue button {background:#f1c777;color:#0b2036;border:0;border-radius:9px;padding:7px 11px;cursor:pointer;font-size:11px;font-weight:700;}
 .chat-continue button:hover,.chat-continue button:focus-visible {background:#ffe0a3;}
+
+/* Dedicated case-analysis layout with enough width for evidence and law sections. */
+.detail-grid.ca-page-grid{grid-template-columns:minmax(0,1fr) minmax(200px,260px)}
+.ca-page-grid .main-workspace{min-width:0}
+@media(max-width:1150px){.detail-grid.ca-page-grid{grid-template-columns:minmax(0,1fr)}}
