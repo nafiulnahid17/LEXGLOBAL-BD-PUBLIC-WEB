@@ -1,6 +1,7 @@
 import { getDraftType } from '../site/drafting-catalog.js';
 import {formatDraft,formatDirective,draftTypeMismatch,kindOf} from './drafting-format.js';
 import {runProviderAI,aiAvailability,VERCEL_MODEL} from './ai-router.js';
+import {handleCaseAnalysis} from './case-analysis.js';
 /**
  * LexGlobal BD For Public — Cloudflare Workers AI backend.
  * No identity docs, file contents, or conversation text are persisted.
@@ -473,6 +474,7 @@ export default {
       const guidance=OFFICIAL[slug];
       return reply({ok:true,mode:'official_guide',answer:guidance.message,title:guidance.title,sources:guidance.sources,contacts:guidance.contacts||[],stored:false,governmentTransaction:false});
     }
+    if(slug==='ai-case-analysis')return handleCaseAnalysis(body,env);
     return handleLegal(slug,body,env);
   }
 };
