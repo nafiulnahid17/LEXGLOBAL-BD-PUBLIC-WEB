@@ -203,6 +203,7 @@ The Public AI Case Analysis route has a dedicated tab-memory discussion UI and a
 **Report:** case overview, known facts, missing facts, provisional legal issues, timeline, original evidence to preserve, documents to prepare/check, next steps, risks and follow-up questions. A server-managed list of possible Bangladesh statute/section references links to official law pages. User-triggered Save TXT or Copy does not upload evidence or case files. No case database/storage has been connected.
 
 **Official candidate source registry:** model text is never allowed to supply authoritative section numbers or links. The server selects only topic matches from worker/case-sources.js:
+- Constitution of Bangladesh Articles 31 and 33: https://bdlaws.minlaw.gov.bd/act-367/act-part-print-200.html
 - Code of Criminal Procedure 1898 section 154: https://bdlaws.minlaw.gov.bd/act-75/section-20845.html?lang=en
 - Evidence Act 1872 section 65B: https://bdlaws.minlaw.gov.bd/act-print-24/section-print-51389.html
 - Contract Act 1872 section 73: https://bdlaws.minlaw.gov.bd/act-print-26/section-print-259.html
