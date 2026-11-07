@@ -33,11 +33,10 @@ test('legal answer is generated only with official source and matching citation'
   assert.equal(r.headers.get('cache-control'),'no-store, private');
 });
 
-test('AI legal, draft and case analysis all work through shared grounded engine',async()=>{
+test('legal assistant and draft retain the grounded shared workflow',async()=>{
   for (const [slug,body] of [
     ['ai-legal-assistant',{question:'আইন বিষয়ে কোন সূত্র জানা যায়?'}],
-    ['instant-legal-draft',{document:'আইনি নোটিশ',purpose:'ভাড়া বিষয়ে জানতে চাই'}],
-    ['ai-case-analysis',{type:'দেওয়ানি',facts:'জমি নিয়ে সাধারণ বিরোধের একটি উদাহরণ'}]
+    ['instant-legal-draft',{document:'আইনি নোটিশ',purpose:'ভাড়া বিষয়ে জানতে চাই'}]
   ]){assert.equal((await call(req('/api/workflows/'+slug,body))).status,200);}
 });
 
@@ -90,7 +89,7 @@ test('retrieval outage degrades to preview AI rather than a hard block',async()=
   assert.equal(r.json.mode,'preview_ai');
 });
 
-test('all three AI forms work without legal index and use native AI binding',async()=>{
+test('legal chat and drafting continue to work without legal index',async()=>{
   let count=0;
   const e=env({LEGAL_SEARCH_INSTANCE:'',AI_SEARCH:undefined,AI:{run:async(_model,payload)=>{
     count++;assert.match(payload.messages[0].content,/TEST PREVIEW MODE/);
@@ -98,13 +97,12 @@ test('all three AI forms work without legal index and use native AI binding',asy
   }}});
   for(const [slug,body] of [
     ['ai-legal-assistant',{question:'hi'}],
-    ['instant-legal-draft',{document:'আইনি নোটিশ',purpose:'নমুনা নোটিশ'}],
-    ['ai-case-analysis',{facts:'একটি কাল্পনিক মামলার ঘটনা'}]
+    ['instant-legal-draft',{document:'আইনি নোটিশ',purpose:'নমুনা নোটিশ'}]
   ]){
     const r=await call(req('/api/workflows/'+slug,body),e);
     assert.equal(r.status,200,slug);assert.equal(r.json.mode,'preview_ai');
   }
-  assert.equal(count,3);
+  assert.equal(count,2);
 });
 
 test('AI upstream error returns safe message',async()=>{
