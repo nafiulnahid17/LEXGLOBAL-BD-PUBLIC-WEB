@@ -7,7 +7,7 @@ const answer=(body,status=200)=>new Response(JSON.stringify({...body,stored:fals
 const reject=(code,message,status=422)=>answer({ok:false,code,message},status);
 
 const ROMAN=new Set('ami amar amake amader tomar tumi apni apnar jomi bari jayga jaygata jomiye mamla case kora korte korbo hoye hoise taka dise diye dilam dei pay nai pai nai churi haray geche gese bou shami biye talak odhikar police thana shathe sathe malikana dolil chukti kagoj buking poysha taka fera dibe dicche kichu kisu'.split(/\s+/));
-const STRONG=new Set('ami amar amake amader jomi mamla kora korte korbo hoise dise haray geche gese bou shami biye talak odhikar thana shathe sathe dolil chukti kagoj poysha'.split(/\s+/));
+const STRONG=new Set('ami amar amake amader jomi mamla kora korte korbo hoise dise haray geche gese bou shami biye talak odhikar thana shathe sathe dolil chukti kagoj poysha taka nai churi'.split(/\s+/));
 export function caseLanguage(text,explicit='auto'){
  if(explicit==='bn'||explicit==='en')return explicit;
  if(/[ঀ-৿]/u.test(text))return 'bn';
@@ -66,8 +66,14 @@ function parseAnalysis(raw,lang){
  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))return null;
  const summary=cleanProse(parsed.summary,lang);
  if(summary.length<8)return null;
+ if(lang==='bn'&&!/[\u0980-\u09FF]/u.test(summary))return null;
+ if(lang==='en'&&/[\u0980-\u09FF]/u.test(summary))return null;
  const result={summary};
  for(const key of FIELDS)result[key]=cleanArray(parsed[key],lang,key==='questions'?4:5);
+ // Reject clearly wrong-language sections instead of displaying English as Banglish output.
+ const nonempty=FIELDS.flatMap(key=>result[key]);
+ const wrong=nonempty.filter(x=>lang==='bn'?!/[\u0980-\u09FF]/u.test(x):/[\u0980-\u09FF]/u.test(x));
+ if(nonempty.length>0&&wrong.length>Math.max(1,Math.floor(nonempty.length*0.35)))return null;
  // A useful case analysis must provide actual preparation guidance, not a
  // confident conclusion with zero supporting context.
  if(!result.questions.length)result.questions=lang==='bn'
