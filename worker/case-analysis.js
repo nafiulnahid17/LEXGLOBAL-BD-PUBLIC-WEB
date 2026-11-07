@@ -92,7 +92,7 @@ function parseAnalysis(raw,lang){
 }
 const emergency=/মেরে ফেলবে|খুনের হুমকি|আত্মহত্যা|তাৎক্ষণিক বিপদ|হামলা চলছে|জীবন হুমকি|immediate danger|kill me|suicid|violent threat|in danger now/iu;
 function modelMessages(data,lang,refs,compact=false){
- const sources=refs.length?refs.map(r=>r.id+' = '+r.lawEn+' / '+r.lawBn+'; section '+r.section+
+ const sources=refs.length?refs.map(r=>r.id+' = '+r.lawEn+' / '+r.lawBn+'; '+(r.unitEn||'Section')+' '+r.section+
    '; '+r.url+'; '+(lang==='bn'?r.bn:r.en)).join('\n'):'No matching statute verified from the curated registry.';
  const instructions='You are LexGlobal BD CASE DISCUSSION & ANALYSIS, an educational Bangladesh legal issue-spotting tool, not a lawyer. '+
   'Produce ONLY parseable JSON with these keys: summary (string), knownFacts (array), missingFacts (array), legalIssues (array), '+
@@ -148,7 +148,7 @@ export async function handleCaseAnalysis(input,env){
  const safetyFlag=emergency.test(data.facts+' '+data.followUp);
  return answer({ok:true,mode:'case_discussion',language,providerUsed,modelRetried,verified:false,
    sourceStatus:references.length?'curated_official_topic_matches':'no_matching_verified_section',
-   analysis:report,references,sources:references.map(r=>({title:r.lawEn+' — s. '+r.section,url:r.url})),
+   analysis:report,references,sources:references.map(r=>({title:r.lawEn+' — '+(r.unitEn||'Section')+' '+r.section,url:r.url})),
    answer:report.summary,emergency:safetyFlag,legalIndexUrl:LAW_INDEX_URL,legalAidUrl:LEGAL_AID_URL,
    disclaimer:language==='bn'?'এটি প্রাথমিক AI বিশ্লেষণ; প্রযোজ্য আইন, ধারা, প্রমাণ ও সময়সীমা যাচাই করে সিদ্ধান্ত নিন।':
      'Preliminary AI analysis only. Verify applicable law, sections, evidence and deadlines before acting.'});
