@@ -5,6 +5,22 @@
  */
 const LAW_LIBRARY = Object.freeze([
   {
+    id:'constitution31',section:'31',unitEn:'Article',unitBn:'অনুচ্ছেদ',
+    lawEn:'Constitution of Bangladesh',lawBn:'গণপ্রজাতন্ত্রী বাংলাদেশের সংবিধান',
+    url:'https://bdlaws.minlaw.gov.bd/act-367/act-part-print-200.html',
+    bn:'আইনের আশ্রয়লাভ ও আইন অনুযায়ী আচরণ পাওয়ার অধিকার। রাষ্ট্রীয় ব্যবস্থার বিরুদ্ধে নির্দিষ্ট অভিযোগে প্রযোজ্যতা যাচাই করতে হবে।',
+    en:'Right to protection of law and treatment according to law; relevance to alleged state action needs assessment.',
+    match:/আইনগত সুরক্ষা|আইনের আশ্রয়|আইনবহির্ভূত|আইন বহির্ভূত|বিনা কারণে গ্রেপ্তার|অবৈধ গ্রেপ্তার|fundamental rights|protection of law|due process|unlawful arrest|constitutional right/iu
+  },
+  {
+    id:'constitution33',section:'33',unitEn:'Article',unitBn:'অনুচ্ছেদ',
+    lawEn:'Constitution of Bangladesh',lawBn:'গণপ্রজাতন্ত্রী বাংলাদেশের সংবিধান',
+    url:'https://bdlaws.minlaw.gov.bd/act-367/act-part-print-200.html',
+    bn:'গ্রেপ্তার ও আটক সম্পর্কে সাংবিধানিক সুরক্ষা; বিশেষ ব্যতিক্রম ও প্রাসঙ্গিক পরিস্থিতি যাচাই আবশ্যক।',
+    en:'Constitutional safeguards concerning arrest and detention, subject to the applicable exceptions and circumstances.',
+    match:/গ্রেপ্তার|গ্রেফতার|আটক করেছে|আটক করে|বন্দি করেছে|illegal detention|detained|arrested|arrest without|arrested by police|custodial/iu
+  },
+  {
     id:'crpc154', section:'154', lawEn:'Code of Criminal Procedure, 1898',lawBn:'ফৌজদারি কার্যবিধি, ১৮৯৮',
     url:'https://bdlaws.minlaw.gov.bd/act-75/section-20845.html?lang=en',
     bn:'আমলযোগ্য অপরাধের তথ্য থানার ভারপ্রাপ্ত কর্মকর্তার কাছে প্রদান ও লিখিতভাবে নথিভুক্তির বিধান। অপরাধটি আমলযোগ্য কি না আগে যাচাই করতে হবে।',
