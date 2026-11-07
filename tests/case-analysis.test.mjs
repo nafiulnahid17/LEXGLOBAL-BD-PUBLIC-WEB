@@ -215,3 +215,11 @@ test('Constitution Articles 31 and 33 use Article/অনুচ্ছেদ label
  assert.ok(data.sources.some(x=>x.title.includes('Article 31')||x.title.includes('Article 33')));
  assert.ok(data.references.every(x=>x.url.startsWith('https://bdlaws.minlaw.gov.bd/')));
 });
+
+
+test('mentioning a spouse alone does not imply Family Courts Act section 5',()=>{
+ const refs=candidateLawReferences('আমার স্ত্রী আমাকে ফোনের একটি কথা বলেছে, এখন প্রমাণ কীভাবে রাখব?');
+ assert.ok(!refs.some(r=>r.id==='family5'));
+ const genuine=candidateLawReferences('বিবাহ বিচ্ছেদ ও দেনমোহর বিষয়ে আদালতে আলোচনা প্রয়োজন');
+ assert.ok(genuine.some(r=>r.id==='family5'));
+});
