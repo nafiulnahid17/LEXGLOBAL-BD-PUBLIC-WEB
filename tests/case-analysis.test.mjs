@@ -200,3 +200,18 @@ test('case UI contains structured sections, no real file uploads, and keeps rend
  const index=await readFile(new URL('../site/index.html',import.meta.url),'utf8');
  assert.match(index,/\/case-analysis\.css/);
 });
+
+
+test('Constitution Articles 31 and 33 use Article/অনুচ্ছেদ labels, never Section/ধারা',async()=>{
+ const refs=candidateLawReferences('পুলিশ আমাকে অবৈধ গ্রেপ্তার করেছে এবং আইনগত সুরক্ষা দেয়নি।');
+ assert.ok(refs.some(r=>r.id==='constitution31'));
+ assert.ok(refs.some(r=>r.id==='constitution33'));
+ assert.equal(refs.find(r=>r.id==='constitution31').unitBn,'অনুচ্ছেদ');
+ assert.equal(refs.find(r=>r.id==='constitution33').unitEn,'Article');
+ const res=await worker.fetch(post({facts:'আমাকে অবৈধ গ্রেপ্তার করে আটক করেছে।'}),
+   mockEnv(async()=>({response:JSON.stringify(sampleBn())})));
+ const data=await res.json();
+ assert.equal(res.status,200,JSON.stringify(data));
+ assert.ok(data.sources.some(x=>x.title.includes('Article 31')||x.title.includes('Article 33')));
+ assert.ok(data.references.every(x=>x.url.startsWith('https://bdlaws.minlaw.gov.bd/')));
+});
