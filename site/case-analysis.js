@@ -57,7 +57,7 @@ function safeUrl(value){try{const url=new URL(value);return url.protocol==='http
 function reportText(r){
  const a=r.analysis,parts=['Case Overview\n'+a.summary];
  for(const key of LIST_FIELDS)parts.push('\n'+key+':\n'+(a[key]||[]).map((s,i)=>(i+1)+'. '+s).join('\n'));
- parts.push('\nPotential legal references:\n'+(r.references||[]).map(x=>x.lawEn+' — section '+x.section+' — '+x.url).join('\n'));
+ parts.push('\nPotential legal references:\n'+(r.references||[]).map(x=>x.lawEn+' — '+(x.unitEn||'Section')+' '+x.section+' — '+x.url).join('\n'));
  return parts.join('\n')+'\n\n'+r.disclaimer;
 }
 export function bindCaseAnalysis(){
@@ -84,7 +84,7 @@ export function bindCaseAnalysis(){
    const link=safeUrl(item.url);if(!link)continue;
    const card=document.createElement('div');card.className='ca-ref';
    const h=document.createElement('strong');h.textContent=
-    (r.language==='bn'?item.lawBn:item.lawEn)+' · '+(r.language==='bn'?'ধারা ':'Section ')+item.section;
+    (r.language==='bn'?item.lawBn:item.lawEn)+' · '+((r.language==='bn'?item.unitBn:item.unitEn)||(r.language==='bn'?'ধারা':'Section'))+' '+item.section;
    const p=document.createElement('p');p.textContent=r.language==='bn'?item.bn:item.en;
    const a=document.createElement('a');a.href=link;a.target='_blank';a.rel='noopener noreferrer';
    a.textContent=r.language==='bn'?'মূল সরকারি উৎস দেখুন':'Read official source';
